@@ -424,7 +424,7 @@ export default function FormPage() {
       })
       .catch(e => setFormError(e instanceof Error ? e.message : t('form.loadError')))
       .finally(() => setFormLoading(false))
-  }, [id, t])
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function set(key: string, val: FieldValue) {
     if (!form) return

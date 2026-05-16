@@ -58,7 +58,7 @@ export default function SchoolRoutingPage() {
     listSchools()
       .then(setSchools)
       .catch(() => setSchoolsError(t('routing.loadError')))
-  }, [t])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Clear map helpers ───────────────────────────────────────────────────────
   const clearMap = useCallback(() => {
