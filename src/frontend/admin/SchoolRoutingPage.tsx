@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import {
   listSchools,
   getSchoolRoute,
@@ -8,8 +8,6 @@ import {
   type SchoolRouteResponse,
 } from '../api/client'
 import { useTranslation } from 'react-i18next'
-
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string
 
 // Split, Croatia
 const DEFAULT_CENTER: [number, number] = [16.44, 43.508]
@@ -26,9 +24,9 @@ function formatTime(seconds: number) {
 
 export default function SchoolRoutingPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<mapboxgl.Map | null>(null)
+  const mapRef = useRef<maplibregl.Map | null>(null)
   const mapReadyRef = useRef(false)
-  const markersRef = useRef<mapboxgl.Marker[]>([])
+  const markersRef = useRef<maplibregl.Marker[]>([])
   const { t } = useTranslation()
 
   const [schools, setSchools] = useState<SchoolSummary[]>([])
@@ -41,13 +39,13 @@ export default function SchoolRoutingPage() {
   // ── Init map ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapContainerRef.current) return
-    const map = new mapboxgl.Map({
+    const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'https://tiles.openfreemap.org/styles/liberty',
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
     })
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right')
+    map.addControl(new maplibregl.NavigationControl(), 'top-right')
     map.on('load', () => { mapReadyRef.current = true })
     mapRef.current = map
     return () => { map.remove(); mapRef.current = null }
@@ -75,7 +73,7 @@ export default function SchoolRoutingPage() {
     const map = mapRef.current
     if (!map) return
 
-    const bounds = new mapboxgl.LngLatBounds()
+    const bounds = new maplibregl.LngLatBounds()
 
     // Bus stop markers — yellow circles numbered 1…N
     data.busStops.forEach((stop, i) => {
@@ -97,10 +95,10 @@ export default function SchoolRoutingPage() {
       })
       el.textContent = String(i + 1)
 
-      const marker = new mapboxgl.Marker({ element: el })
+      const marker = new maplibregl.Marker({ element: el })
         .setLngLat([stop.lon, stop.lat])
         .setPopup(
-          new mapboxgl.Popup({ offset: 14 }).setHTML(
+          new maplibregl.Popup({ offset: 14 }).setHTML(
             `<p style="margin:0;font-weight:600">${t('routing.stop', { number: i + 1 })}</p>
              <p style="margin:2px 0 0;font-size:12px;color:#555">
                ${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}
@@ -133,10 +131,10 @@ export default function SchoolRoutingPage() {
         <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/>
       </svg>`
 
-    const schoolMarker = new mapboxgl.Marker({ element: schoolEl })
+    const schoolMarker = new maplibregl.Marker({ element: schoolEl })
       .setLngLat([data.school.lon, data.school.lat])
       .setPopup(
-        new mapboxgl.Popup({ offset: 18 }).setHTML(
+        new maplibregl.Popup({ offset: 18 }).setHTML(
           `<p style="margin:0;font-weight:600">${data.school.name}</p>
            <p style="margin:2px 0 0;font-size:12px;color:#555">${t('routing.destination')}</p>`
         )
@@ -172,9 +170,7 @@ export default function SchoolRoutingPage() {
             source: 'route-source',
             layout: { 'line-join': 'round', 'line-cap': 'round' },
             paint: { 'line-color': '#1e3a5f', 'line-width': 4, 'line-opacity': 0.85 },
-          },
-          // Insert below marker layers so markers render on top
-          'road-label' as string
+          }
         )
       }
 
