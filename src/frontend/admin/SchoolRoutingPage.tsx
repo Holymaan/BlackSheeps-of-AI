@@ -20,6 +20,11 @@ function formatTime(seconds: number) {
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}min`
 }
 
+/** Flatten all legs into a single coordinate array for animation. */
+function flattenLegs(legs: number[][][]): number[][] {
+  return legs.flatMap(leg => leg)
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function SchoolRoutingPage() {
@@ -27,6 +32,7 @@ export default function SchoolRoutingPage() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const mapReadyRef = useRef(false)
   const markersRef = useRef<maplibregl.Marker[]>([])
+  const animFrameRef = useRef<number>(0)
   const { t } = useTranslation()
 
   const [schools, setSchools] = useState<SchoolSummary[]>([])
@@ -36,6 +42,14 @@ export default function SchoolRoutingPage() {
   const [schoolsError, setSchoolsError] = useState<string | null>(null)
   const [routeError, setRouteError] = useState<string | null>(null)
   const [result, setResult] = useState<SchoolRouteResponse | null>(null)
+  const [expandedStops, setExpandedStops] = useState<Set<number>>(new Set())
+
+  const toggleStop = (idx: number) =>
+    setExpandedStops(prev => {
+      const next = new Set(prev)
+      next.has(idx) ? next.delete(idx) : next.add(idx)
+      return next
+    })
 
   // ── Init map ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -63,10 +77,120 @@ export default function SchoolRoutingPage() {
   const clearMap = useCallback(() => {
     const map = mapRef.current
     if (!map) return
+    cancelAnimationFrame(animFrameRef.current)
     markersRef.current.forEach(m => m.remove())
     markersRef.current = []
-    if (map.getLayer('route-layer')) map.removeLayer('route-layer')
-    if (map.getSource('route-source')) map.removeSource('route-source')
+    for (const id of ['route-layer', 'route-glow']) {
+      if (map.getLayer(id)) map.removeLayer(id)
+    }
+    for (const id of ['route-source', 'route-anim']) {
+      if (map.getSource(id)) map.removeSource(id)
+    }
+    if (map.getLayer('bus-dot')) map.removeLayer('bus-dot')
+    if (map.getSource('bus-dot')) map.removeSource('bus-dot')
+  }, [])
+
+  // ── Animate route drawing ──────────────────────────────────────────────────
+  const animateRoute = useCallback((map: maplibregl.Map, allCoords: number[][]) => {
+    // Source for the progressively drawn line
+    const animData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: allCoords.slice(0, 1) },
+        properties: {},
+      }],
+    }
+
+    map.addSource('route-anim', { type: 'geojson', data: animData })
+
+    // Glow layer (wide, semi-transparent)
+    map.addLayer({
+      id: 'route-glow',
+      type: 'line',
+      source: 'route-anim',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#3b82f6', 'line-width': 10, 'line-opacity': 0.2 },
+    })
+
+    // Main route line
+    map.addLayer({
+      id: 'route-layer',
+      type: 'line',
+      source: 'route-anim',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#1e3a5f', 'line-width': 4, 'line-opacity': 0.9 },
+    })
+
+    // Moving bus dot
+    const busData: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: allCoords[0] },
+        properties: {},
+      }],
+    }
+    map.addSource('bus-dot', { type: 'geojson', data: busData })
+    map.addLayer({
+      id: 'bus-dot',
+      type: 'circle',
+      source: 'bus-dot',
+      paint: {
+        'circle-radius': 7,
+        'circle-color': '#F59E0B',
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#ffffff',
+      },
+    })
+
+    // Progressive animation
+    const total = allCoords.length
+    const duration = 3000 // ms
+    const startTime = performance.now()
+
+    const step = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1)
+      // Ease-out for a smooth deceleration
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const idx = Math.min(Math.floor(eased * total), total - 1)
+
+      const slice = allCoords.slice(0, idx + 1)
+      const src = map.getSource('route-anim') as maplibregl.GeoJSONSource | undefined
+      if (src) {
+        src.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: slice },
+            properties: {},
+          }],
+        })
+      }
+
+      // Move bus dot
+      const busSrc = map.getSource('bus-dot') as maplibregl.GeoJSONSource | undefined
+      if (busSrc) {
+        busSrc.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: allCoords[idx] },
+            properties: {},
+          }],
+        })
+      }
+
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(step)
+      } else {
+        // Animation done — remove bus dot, keep route
+        if (map.getLayer('bus-dot')) map.removeLayer('bus-dot')
+        if (map.getSource('bus-dot')) map.removeSource('bus-dot')
+      }
+    }
+
+    animFrameRef.current = requestAnimationFrame(step)
   }, [])
 
   // ── Render result on map ────────────────────────────────────────────────────
@@ -97,16 +221,18 @@ export default function SchoolRoutingPage() {
       el.textContent = String(i + 1)
 
       const stopLabel = stop.name || `${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}`
+      const studentList = stop.studentNames.map(n => `<li>${n}</li>`).join('')
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([stop.lon, stop.lat])
         .setPopup(
-          new maplibregl.Popup({ offset: 14 }).setHTML(
+          new maplibregl.Popup({ offset: 14, maxWidth: '260px' }).setHTML(
             `<p style="margin:0;font-weight:600">${t('routing.stop', { number: i + 1 })}</p>
              <p style="margin:2px 0 0;font-size:13px;color:#333">${stopLabel}</p>
              <p style="margin:4px 0 0;font-size:12px;color:#555">
                ${t('routing.students')}: ${stop.studentCount} &middot;
                ${t('routing.arrival')}: ${stop.estimatedArrivalMin} min
-             </p>`
+             </p>
+             <ul style="margin:4px 0 0;padding-left:16px;font-size:11px;color:#666">${studentList}</ul>`
           )
         )
         .addTo(map)
@@ -148,48 +274,21 @@ export default function SchoolRoutingPage() {
     markersRef.current.push(schoolMarker)
     bounds.extend([data.school.lon, data.school.lat])
 
-    // Route polyline — one GeoJSON LineString per Valhalla leg
-    if (data.route.legs.length > 0) {
-      const features = data.route.legs.map(coords => ({
-        type: 'Feature' as const,
-        geometry: { type: 'LineString' as const, coordinates: coords },
-        properties: {},
-      }))
+    // Fit bounds first, then animate route
+    const allCoords = flattenLegs(data.route.legs)
+    allCoords.forEach(([lon, lat]) => bounds.extend([lon, lat]))
 
-      data.route.legs.forEach(coords =>
-        coords.forEach(([lon, lat]) => bounds.extend([lon, lat]))
-      )
-
-      // Wait for style to be loaded before touching sources/layers
-      const addRoute = () => {
-        if (!mapRef.current) return
-        mapRef.current.addSource('route-source', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features },
-        })
-        mapRef.current.addLayer(
-          {
-            id: 'route-layer',
-            type: 'line',
-            source: 'route-source',
-            layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': '#1e3a5f', 'line-width': 4, 'line-opacity': 0.85 },
-          }
-        )
-      }
-
-      if (mapReadyRef.current) {
-        addRoute()
-      } else {
-        map.once('load', addRoute)
-      }
-    }
-
-    map.resize()
     if (!bounds.isEmpty()) {
       map.fitBounds(bounds, { padding: 70, maxZoom: 14, duration: 800 })
     }
-  }, [t])
+
+    map.resize()
+
+    // Start animation after fitBounds settles
+    setTimeout(() => {
+      if (allCoords.length > 1) animateRoute(map, allCoords)
+    }, 900)
+  }, [t, animateRoute])
 
   // ── Re-render when result arrives and map is ready ──────────────────────────
   useEffect(() => {
@@ -208,6 +307,7 @@ export default function SchoolRoutingPage() {
     setRouteError(null)
     clearMap()
     setResult(null)
+    setExpandedStops(new Set())
 
     try {
       const data = await getSchoolRoute(Number(selectedId), busCapacity)
@@ -285,7 +385,7 @@ export default function SchoolRoutingPage() {
 
           {/* ── Results ── */}
           {result && (
-            <div className="space-y-5">
+            <div className="space-y-5 animate-fade-in">
 
               {/* Summary cards */}
               <div>
@@ -326,28 +426,55 @@ export default function SchoolRoutingPage() {
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   {t('routing.pickupStops', { count: result.busStops.length })}
                 </h3>
-                <div className="space-y-1.5 max-h-80 overflow-y-auto pr-0.5">
+                <div className="space-y-1.5 max-h-[50vh] overflow-y-auto pr-0.5">
                   {result.busStops.map((stop, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-100 text-xs"
-                    >
-                      <span className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center font-bold text-gray-900 shrink-0 mt-0.5">
-                        {i + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-gray-800 font-medium truncate">
-                          {stop.name || `${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}`}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5 text-gray-500">
-                          <span>{stop.studentCount} {t('routing.students').toLowerCase()}</span>
-                          <span>&middot;</span>
-                          <span>{stop.estimatedArrivalMin} min</span>
+                    <div key={i} className="rounded-lg bg-amber-50 border border-amber-100 text-xs overflow-hidden">
+                      {/* Stop header — clickable */}
+                      <button
+                        onClick={() => toggleStop(i)}
+                        className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-amber-100/50 transition"
+                      >
+                        <span className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center font-bold text-gray-900 shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-gray-800 font-medium truncate">
+                            {stop.name || `${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}`}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 text-gray-500">
+                            <span>{stop.estimatedArrivalMin} min</span>
+                            <span>&middot;</span>
+                            <span>{stop.studentCount} {t('routing.students').toLowerCase()}</span>
+                          </div>
                         </div>
-                      </div>
-                      <span className="bg-amber-200 text-amber-800 font-bold rounded-full px-1.5 py-0.5 text-[10px] shrink-0 mt-0.5">
-                        {stop.studentCount}
-                      </span>
+                        <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                          <span className="bg-amber-200 text-amber-800 font-bold rounded-full px-1.5 py-0.5 text-[10px]">
+                            {stop.studentCount}
+                          </span>
+                          <svg
+                            className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expandedStops.has(i) ? 'rotate-180' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+
+                      {/* Expanded student list */}
+                      {expandedStops.has(i) && (
+                        <div className="px-3 pb-2 pt-0 border-t border-amber-100">
+                          <ul className="mt-1.5 space-y-0.5">
+                            {stop.studentNames.map((name, j) => (
+                              <li key={j} className="flex items-center gap-1.5 text-gray-600">
+                                <svg className="w-3 h-3 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                                </svg>
+                                {name}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -386,7 +513,7 @@ export default function SchoolRoutingPage() {
   )
 }
 
-// ── Sub-component ─────────────────────────────────────────────────────────────
+// ── Sub-components ───────────────────────────────────────────────────────────
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (

@@ -100,6 +100,7 @@ export interface BusStopPoint {
   lon: number
   studentCount: number
   estimatedArrivalMin: number
+  studentNames: string[]
 }
 
 export interface FleetInfo {

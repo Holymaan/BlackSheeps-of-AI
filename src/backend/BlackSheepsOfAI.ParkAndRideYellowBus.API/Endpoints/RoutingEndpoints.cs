@@ -21,7 +21,8 @@ public sealed record BusStopInfo(
     double Lat,
     double Lon,
     int StudentCount,
-    double EstimatedArrivalMin);
+    double EstimatedArrivalMin,
+    IReadOnlyList<string> StudentNames);
 
 /// <param name="Legs">
 /// One element per Valhalla trip leg. Each element is an ordered list of
@@ -69,25 +70,32 @@ public static class RoutingEndpoints
                     .AsNoTracking()
                     .ToListAsync(ct);
 
-                var homeAddresses = allSubmissions
+                // Extract home address + child name from each matching submission.
+                var studentEntries = allSubmissions
                     .Where(s => GetStringValue(s.Values, "school") == schoolIdStr)
-                    .Select(s => GetHomeAddress(s.Values))
-                    .OfType<(double Lat, double Lon)>()
+                    .Select(s => new
+                    {
+                        Address   = GetHomeAddress(s.Values),
+                        ChildName = GetStringValue(s.Values, "childName") ?? "—",
+                    })
+                    .Where(e => e.Address is not null)
                     .ToList();
 
-                if (homeAddresses.Count == 0)
+                if (studentEntries.Count == 0)
                     return Results.UnprocessableEntity(
                         new { message = "No form submissions with home addresses found for this school." });
 
-                // 3 & 4. Nearest bus stop per home address (deduplicated, with student counts)
-                var waypoints     = new List<ValhallaLocation>();
-                var stopNames     = new List<string>();
-                var stopCoords    = new List<(double Lat, double Lon)>();
-                var studentCounts = new List<int>();
-                var stopIndexById = new Dictionary<int, int>(); // busStopId → index
+                // 3 & 4. Nearest bus stop per home address (deduplicated, with student names)
+                var waypoints      = new List<ValhallaLocation>();
+                var stopNames      = new List<string>();
+                var stopCoords     = new List<(double Lat, double Lon)>();
+                var studentCounts  = new List<int>();
+                var studentNamesList = new List<List<string>>();
+                var stopIndexById  = new Dictionary<int, int>(); // busStopId → index
 
-                foreach (var addr in homeAddresses)
+                foreach (var entry in studentEntries)
                 {
+                    var addr = entry.Address!.Value;
                     var searchPoint = new Point(addr.Lon, addr.Lat) { SRID = 4326 };
 
                     var nearest = await db.BusStops
@@ -101,6 +109,7 @@ public static class RoutingEndpoints
                     if (stopIndexById.TryGetValue(nearest.Id, out var idx))
                     {
                         studentCounts[idx]++;
+                        studentNamesList[idx].Add(entry.ChildName);
                     }
                     else
                     {
@@ -111,6 +120,7 @@ public static class RoutingEndpoints
                         stopNames.Add(nearest.Name ?? "");
                         stopCoords.Add((lat, lon));
                         studentCounts.Add(1);
+                        studentNamesList.Add([entry.ChildName]);
                     }
                 }
 
@@ -147,9 +157,10 @@ public static class RoutingEndpoints
                     .ToList();
 
                 // Reorder stop data to match visit order (arrival times filled after routing).
-                var orderedNames    = visitOrder.Select(i => stopNames[i]).ToList();
-                var orderedCoords   = visitOrder.Select(i => stopCoords[i]).ToList();
-                var orderedStudents = visitOrder.Select(i => studentCounts[i]).ToList();
+                var orderedNames        = visitOrder.Select(i => stopNames[i]).ToList();
+                var orderedCoords       = visitOrder.Select(i => stopCoords[i]).ToList();
+                var orderedStudents     = visitOrder.Select(i => studentCounts[i]).ToList();
+                var orderedStudentNames = visitOrder.Select(i => (IReadOnlyList<string>)studentNamesList[i]).ToList();
 
                 // 5c. Re-route with break_through at every intermediate stop so Valhalla
                 //     cannot insert a U-turn at any pickup point.
@@ -194,7 +205,8 @@ public static class RoutingEndpoints
                         Lat:                 orderedCoords[i].Lat,
                         Lon:                 orderedCoords[i].Lon,
                         StudentCount:        orderedStudents[i],
-                        EstimatedArrivalMin: Math.Round(cumulativeSec / 60.0, 1)));
+                        EstimatedArrivalMin: Math.Round(cumulativeSec / 60.0, 1),
+                        StudentNames:        orderedStudentNames[i]));
                     if (i < legTimesSec.Count)
                         cumulativeSec += legTimesSec[i];
                 }
