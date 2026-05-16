@@ -77,8 +77,8 @@ public static class SeedData
     {
         if (db.BusStops.Any()) return;
 
-        InsertGeo(db, "bus_stop", "(id, geom, name, bus)", s_busStops.Select(r =>
-            $"({r.Id}, '{r.Geom}'::geometry, '{Sq(r.Name)}', '')"));
+        InsertGeo(db, "bus_stop", "(id, geom, name)", s_busStops.Select(r =>
+            $"({r.Id}, '{r.Geom}'::geometry, '{Sq(r.Name)}')"));
 
         db.Database.ExecuteSqlRaw(
             "SELECT setval(pg_get_serial_sequence('bus_stop','id'), MAX(id)) FROM bus_stop;");

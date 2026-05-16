@@ -22,6 +22,7 @@ services:
       - "5050:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin-storage:/var/lib/pgadmin/storage/admin_admin.com
     depends_on:
       - postgres
 

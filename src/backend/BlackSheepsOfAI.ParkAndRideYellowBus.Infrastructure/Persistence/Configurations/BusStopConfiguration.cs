@@ -25,10 +25,5 @@ public sealed class BusStopConfiguration : IEntityTypeConfiguration<BusStop>
             .HasColumnName("name")
             .HasColumnType("character varying")
             .IsRequired();
-
-        builder.Property(x => x.Bus)
-            .HasColumnName("bus")
-            .HasColumnType("character varying")
-            .IsRequired();
     }
 }
