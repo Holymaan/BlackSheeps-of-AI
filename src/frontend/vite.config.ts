@@ -6,6 +6,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/form': 'http://localhost:5058',
+      '/auth': 'http://localhost:5058',
+      '/health': 'http://localhost:5058',
     },
   },
 })

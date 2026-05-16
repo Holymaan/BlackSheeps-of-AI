@@ -1,4 +1,5 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, Navigate } from 'react-router-dom'
+import { useAuth } from './AuthContext'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
@@ -8,6 +9,10 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`
 
 export default function AdminLayout() {
+  const { isAuthenticated, username, logout } = useAuth()
+
+  if (!isAuthenticated) return <Navigate to="/admin/login" replace />
+
   return (
     <div className="flex h-screen bg-gray-50 font-sans">
       {/* Sidebar */}
@@ -32,8 +37,14 @@ export default function AdminLayout() {
           </NavLink>
         </nav>
 
-        <div className="px-6 py-4 border-t border-white/10 text-xs text-white/40">
-          Park &amp; Ride ŽutiBus
+        <div className="px-6 py-4 border-t border-white/10">
+          <p className="text-xs text-white/60 mb-2">{username}</p>
+          <button
+            onClick={logout}
+            className="text-xs text-white/40 hover:text-white transition"
+          >
+            Sign out
+          </button>
         </div>
       </aside>
 

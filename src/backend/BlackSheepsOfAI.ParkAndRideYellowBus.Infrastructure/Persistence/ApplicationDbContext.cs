@@ -22,6 +22,8 @@ public class ApplicationDbContext : DbContext
     /// <summary>Submitted forms, persisted for further processing.</summary>
     public DbSet<FormSubmission> FormSubmissions => Set<FormSubmission>();
 
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
+
     public DbSet<BusStop> BusStops => Set<BusStop>();
     public DbSet<School> Schools => Set<School>();
 

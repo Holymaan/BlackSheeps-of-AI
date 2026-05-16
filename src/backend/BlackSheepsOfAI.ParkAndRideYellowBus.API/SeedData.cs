@@ -1,3 +1,4 @@
+using BlackSheepsOfAI.ParkAndRideYellowBus.API.Endpoints;
 using BlackSheepsOfAI.ParkAndRideYellowBus.Core.Entities;
 using BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure.Persistence;
 
@@ -15,11 +16,26 @@ public static class SeedData
     public static readonly Guid SampleSchoolFormId =
         Guid.Parse("3f1a7c9e-2b8d-4e6f-a1b2-c3d4e5f60718");
 
+    public static readonly Guid AdminUserId =
+        Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+
     /// <summary>
     /// Inserts the sample school-registration form when it does not yet exist.
     /// </summary>
     public static void EnsureSampleData(ApplicationDbContext db)
     {
+        if (!db.AppUsers.Any(u => u.Id == AdminUserId))
+        {
+            db.AppUsers.Add(new AppUser
+            {
+                Id = AdminUserId,
+                Username = "admin",
+                PasswordHash = AuthEndpoints.HashPassword("admin123"),
+                Role = "Admin",
+            });
+            db.SaveChanges();
+        }
+
         if (db.FormDefinitions.Any(f => f.Id == SampleSchoolFormId))
             return;
 

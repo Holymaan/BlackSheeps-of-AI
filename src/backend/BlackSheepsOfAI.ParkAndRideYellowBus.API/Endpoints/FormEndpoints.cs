@@ -32,7 +32,8 @@ public static class FormEndpoints
                 return Results.Ok(forms);
             })
            .WithName("ListForms")
-           .WithTags("Forms");
+           .WithTags("Forms")
+           .RequireAuthorization("Admin");
 
         // POST /form — creates a new form definition.
         app.MapPost("/form",
@@ -52,7 +53,8 @@ public static class FormEndpoints
                 return Results.Created($"/form/{form.Id}", form);
             })
            .WithName("CreateForm")
-           .WithTags("Forms");
+           .WithTags("Forms")
+           .RequireAuthorization("Admin");
 
         // GET /form/{id} — returns the form definition for the frontend to render.
         app.MapGet("/form/{id:guid}",
@@ -109,7 +111,8 @@ public static class FormEndpoints
                 return Results.Ok(submissions);
             })
            .WithName("ListSubmissions")
-           .WithTags("Forms");
+           .WithTags("Forms")
+           .RequireAuthorization("Admin");
 
         // GET /form/{id}/submission/{submissionId} — reads back a stored submission.
         app.MapGet("/form/{id:guid}/submission/{submissionId:guid}",
@@ -125,7 +128,8 @@ public static class FormEndpoints
                     : Results.Ok(submission);
             })
            .WithName("GetSubmission")
-           .WithTags("Forms");
+           .WithTags("Forms")
+           .RequireAuthorization("Admin");
 
         return app;
     }
