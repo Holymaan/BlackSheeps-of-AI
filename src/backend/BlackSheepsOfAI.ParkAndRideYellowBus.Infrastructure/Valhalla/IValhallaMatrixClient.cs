@@ -20,4 +20,14 @@ public interface IValhallaClient
     Task<ValhallaOptimizedRouteResponse> GetOptimizedRouteAsync(
         ValhallaOptimizedRouteRequest request,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Routes through locations in the exact order given (no reordering).
+    /// Set <see cref="ValhallaLocation.Type"/> to <c>"break_through"</c> on
+    /// intermediate stops to prevent U-turns at those locations.
+    /// Returns the same trip structure as <see cref="GetOptimizedRouteAsync"/>.
+    /// </summary>
+    Task<ValhallaOptimizedRouteResponse> GetRouteAsync(
+        ValhallaRouteRequest request,
+        CancellationToken cancellationToken = default);
 }

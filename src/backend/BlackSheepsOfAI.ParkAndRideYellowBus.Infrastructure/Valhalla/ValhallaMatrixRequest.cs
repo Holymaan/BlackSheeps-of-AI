@@ -25,4 +25,14 @@ public sealed class ValhallaLocation
 
     [JsonPropertyName("lon")]
     public double Lon { get; init; }
+
+    /// <summary>
+    /// Valhalla location type: "break" (default stop, U-turns allowed),
+    /// "break_through" (stop, but route must continue in the same direction — no U-turns),
+    /// "through" (pass-through, no stop), "via" (soft waypoint).
+    /// Omitted when null so it does not appear in matrix/optimized-route payloads.
+    /// </summary>
+    [JsonPropertyName("type")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Type { get; init; }
 }

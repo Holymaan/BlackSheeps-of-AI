@@ -39,4 +39,17 @@ public sealed class ValhallaClient : IValhallaClient
         return await response.Content.ReadFromJsonAsync<ValhallaOptimizedRouteResponse>(cancellationToken: cancellationToken)
                ?? throw new InvalidOperationException("Valhalla returned an empty optimized route response.");
     }
+
+    /// <inheritdoc/>
+    public async Task<ValhallaOptimizedRouteResponse> GetRouteAsync(
+        ValhallaRouteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var payload = ValhallaRoutePayload.From(request);
+        var response = await _http.PostAsJsonAsync("/route", payload, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<ValhallaOptimizedRouteResponse>(cancellationToken: cancellationToken)
+               ?? throw new InvalidOperationException("Valhalla returned an empty route response.");
+    }
 }

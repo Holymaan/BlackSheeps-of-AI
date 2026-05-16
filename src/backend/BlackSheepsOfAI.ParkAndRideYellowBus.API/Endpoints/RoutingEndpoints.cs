@@ -90,27 +90,64 @@ public static class RoutingEndpoints
                     busStops.Add(new BusStopInfo(lat, lon));
                 }
 
-                // 5. Optimized route: bus stops → school
-                var valhallaRequest = new ValhallaOptimizedRouteRequest
+                var schoolLat = school.Geom.Coordinate.Y;
+                var schoolLon = school.Geom.Coordinate.X;
+
+                // 5a. Ask Valhalla for the optimal stop ordering (TSP).
+                //     We only care about the reordered location list, not the route geometry.
+                var optimizeRequest = new ValhallaOptimizedRouteRequest
                 {
                     Locations   = waypoints,
-                    Destination = new ValhallaLocation
-                    {
-                        Lat = school.Geom.Coordinate.Y,
-                        Lon = school.Geom.Coordinate.X,
-                    },
-                    Costing = "auto",
+                    Destination = new ValhallaLocation { Lat = schoolLat, Lon = schoolLon },
+                    Costing     = "auto",
                 };
 
-                ValhallaOptimizedRouteResponse route;
+                ValhallaOptimizedRouteResponse optimized;
                 try
                 {
-                    route = await valhalla.GetOptimizedRouteAsync(valhallaRequest, ct);
+                    optimized = await valhalla.GetOptimizedRouteAsync(optimizeRequest, ct);
                 }
                 catch (HttpRequestException ex)
                 {
                     return Results.Problem(
-                        detail: $"Valhalla routing engine error: {ex.Message}",
+                        detail: $"Valhalla routing engine error (optimise): {ex.Message}",
+                        statusCode: 502);
+                }
+
+                // 5b. Reconstruct the visit order from Valhalla's original_index values.
+                //     trip.locations are already in visit order; original_index maps each back
+                //     to the input waypoints array.  Skip the last entry — that is the school.
+                var visitOrder = optimized.Trip.Locations
+                    .Take(optimized.Trip.Locations.Count - 1)   // drop the destination
+                    .Select(l => l.OriginalIndex)
+                    .ToList();
+
+                // Reorder busStops to match the visit order so the sidebar list stays in sync.
+                var orderedBusStops = visitOrder.Select(i => busStops[i]).ToList();
+
+                // 5c. Re-route with break_through at every intermediate stop so Valhalla
+                //     cannot insert a U-turn at any pickup point.
+                var routeLocations = visitOrder
+                    .Select(i => new ValhallaLocation
+                    {
+                        Lat  = waypoints[i].Lat,
+                        Lon  = waypoints[i].Lon,
+                        Type = "break_through",   // stop here, but keep going in the same direction
+                    })
+                    .Append(new ValhallaLocation { Lat = schoolLat, Lon = schoolLon, Type = "break" })
+                    .ToList();
+
+                ValhallaOptimizedRouteResponse route;
+                try
+                {
+                    route = await valhalla.GetRouteAsync(
+                        new ValhallaRouteRequest { Locations = routeLocations, Costing = "auto" },
+                        ct);
+                }
+                catch (HttpRequestException ex)
+                {
+                    return Results.Problem(
+                        detail: $"Valhalla routing engine error (route): {ex.Message}",
                         statusCode: 502);
                 }
 
@@ -123,9 +160,9 @@ public static class RoutingEndpoints
                     School: new SchoolRouteInfo(
                         school.Id,
                         school.Name,
-                        school.Geom.Coordinate.Y,
-                        school.Geom.Coordinate.X),
-                    BusStops: busStops,
+                        schoolLat,
+                        schoolLon),
+                    BusStops: orderedBusStops,
                     Route: new RouteInfo(
                         Legs:      legs,
                         TimeSec:   route.Trip.Summary.Time,
