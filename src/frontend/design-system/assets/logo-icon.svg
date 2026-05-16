@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 56" fill="none" role="img" aria-label="Žuti Autobus ikona">
+  <!-- Bus body -->
+  <rect x="4" y="10" width="100" height="30" rx="6" fill="#F5B800"/>
+
+  <!-- Front cab section (right side) -->
+  <rect x="92" y="10" width="12" height="30" rx="5" fill="#E5A800"/>
+
+  <!-- Windshield -->
+  <rect x="93" y="14" width="10" height="14" rx="2.5" fill="#93C5FD"/>
+
+  <!-- Body windows (4 evenly spaced) -->
+  <rect x="10" y="16" width="14" height="13" rx="2.5" fill="#1B4F8A"/>
+  <rect x="28" y="16" width="14" height="13" rx="2.5" fill="#1B4F8A"/>
+  <rect x="46" y="16" width="14" height="13" rx="2.5" fill="#1B4F8A"/>
+  <rect x="64" y="16" width="14" height="13" rx="2.5" fill="#1B4F8A"/>
+
+  <!-- Amber stripe below windows -->
+  <rect x="4" y="32" width="100" height="3" rx="1" fill="#C8980A"/>
+
+  <!-- Headlight -->
+  <rect x="105" y="24" width="9" height="9" rx="2" fill="#FEF08A"/>
+
+  <!-- Door grip (rear left) -->
+  <rect x="5" y="18" width="3" height="14" rx="1.5" fill="#C8980A"/>
+
+  <!-- Undercarriage connector -->
+  <rect x="16" y="40" width="72" height="2" rx="1" fill="#C8980A"/>
+
+  <!-- Rear wheel -->
+  <circle cx="22" cy="46" r="8" fill="#1F2937"/>
+  <circle cx="22" cy="46" r="3.5" fill="#F5B800"/>
+
+  <!-- Front wheel -->
+  <circle cx="86" cy="46" r="8" fill="#1F2937"/>
+  <circle cx="86" cy="46" r="3.5" fill="#F5B800"/>
+</svg>
