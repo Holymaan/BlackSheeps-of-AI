@@ -4,7 +4,8 @@
       "Bash(export PATH=\"$PATH:$HOME/.dotnet/tools\")",
       "Bash(dotnet ef *)",
       "Bash(npm install *)",
-      "Bash(dotnet build *)"
+      "Bash(dotnet build *)",
+      "Bash(dotnet new *)"
     ]
   }
 }
