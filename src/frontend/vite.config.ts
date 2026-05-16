@@ -5,8 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/form': 'http://localhost:5058',
       '/auth': 'http://localhost:5058',
+      '/form': 'http://localhost:5058',
       '/health': 'http://localhost:5058',
       '/schools': 'http://localhost:5058',
       '/routing': 'http://localhost:5058',

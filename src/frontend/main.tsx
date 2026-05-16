@@ -17,7 +17,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/form/:id" element={<FormPage />} />
+          <Route path="/prijava/:id" element={<FormPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<ProjectListPage />} />
