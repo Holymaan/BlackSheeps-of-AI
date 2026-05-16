@@ -83,7 +83,7 @@ function AddressField({
     if (!mapContainerRef.current) return
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
+      style: 'mapbox://styles/mapbox/light-v11',
       center: [value?.lon ?? 16.4402, value?.lat ?? 43.5081],
       zoom: (value?.lat && value?.lon) ? 14 : 12,
       interactive: false,
@@ -527,7 +527,7 @@ export default function FormPage() {
               <span className="fp-tagline-dot"/>
               <span>{t('form.taglineEGov')}</span>
             </div>
-            <LanguageSwitcher className="text-white/60" />
+            <LanguageSwitcher className="text-gray-500" />
           </div>
         </div>
 

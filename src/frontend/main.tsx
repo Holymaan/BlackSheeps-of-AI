@@ -2,7 +2,8 @@ import './index.css'
 import './i18n'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import LandingPage from './LandingPage'
 import FormPage from './FormPage'
 import { AuthProvider } from './admin/AuthContext'
 import AdminLayout from './admin/AdminLayout'
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/prijava/:id" element={<FormPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
           <Route path="/admin" element={<AdminLayout />}>
@@ -27,7 +29,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="projects/:id/submissions/:submissionId" element={<SubmissionDetailPage />} />
             <Route path="routing" element={<SchoolRoutingPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
