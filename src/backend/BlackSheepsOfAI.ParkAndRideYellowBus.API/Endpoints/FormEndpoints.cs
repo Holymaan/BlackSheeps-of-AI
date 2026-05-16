@@ -56,6 +56,20 @@ public static class FormEndpoints
            .WithTags("Forms")
            .RequireAuthorization("Admin");
 
+        // GET /form/public — lists forms available to citizens (no auth required).
+        app.MapGet("/form/public",
+            async (ApplicationDbContext db, CancellationToken ct) =>
+            {
+                var forms = await db.FormDefinitions
+                    .AsNoTracking()
+                    .Select(f => new { f.Id, f.Title, f.Description })
+                    .ToListAsync(ct);
+
+                return Results.Ok(forms);
+            })
+           .WithName("ListPublicForms")
+           .WithTags("Forms");
+
         // GET /form/{id} — returns the form definition for the frontend to render.
         app.MapGet("/form/{id:guid}",
             async (Guid id, ApplicationDbContext db, CancellationToken ct) =>

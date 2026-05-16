@@ -33,6 +33,18 @@ export async function login(username: string, password: string): Promise<{ token
   return res.json()
 }
 
+export interface PublicFormSummary {
+  id: string
+  title: string
+  description: string | null
+}
+
+export async function listPublicForms(): Promise<PublicFormSummary[]> {
+  const res = await fetch('/form/public')
+  if (!res.ok) throw new Error('Failed to fetch forms')
+  return res.json()
+}
+
 export async function listForms(): Promise<FormDefinitionSummary[]> {
   const res = await fetch('/form', { headers: authHeaders() })
   if (!res.ok) throw new Error('Failed to fetch forms')

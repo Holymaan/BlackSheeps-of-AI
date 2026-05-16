@@ -121,6 +121,23 @@
     "hint": "Odaberite školu i kliknite Izračunaj rutu za prikaz optimizirane rute.",
     "stop": "Stanica {{number}}"
   },
+  "landing": {
+    "badge": "Digitalna usluga",
+    "heroTitle": "Školski prijevoz za vaše dijete",
+    "heroSub": "Prijavite svoje dijete za organizirani školski prijevoz putem ŽutiBus sustava Grada Splita. Ispunite obrazac u svega par minuta.",
+    "taglineServices": "Digitalne usluge",
+    "taglineEGov": "e-Uprava",
+    "statCitizens": "Za građane Splita",
+    "statSecure": "Sigurno i zaštićeno",
+    "statFast": "Brzo i jednostavno",
+    "formsTitle": "Dostupni obrasci",
+    "loading": "Učitavanje…",
+    "loadError": "Nije moguće učitati obrasce.",
+    "noForms": "Trenutno nema dostupnih obrazaca.",
+    "openForm": "Ispuni obrazac",
+    "footer": "© {{year}} ŽutiBus Split · Grad Split digitalna usluga",
+    "footerCivic": "Republika Hrvatska · Splitsko-dalmatinska županija"
+  },
   "form": {
     "loading": "Učitavanje obrasca…",
     "notFound": "Obrazac nije pronađen.",

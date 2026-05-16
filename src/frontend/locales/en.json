@@ -119,6 +119,23 @@
     "hint": "Select a school and click Calculate Route to see the optimised bus route.",
     "stop": "Stop {{number}}"
   },
+  "landing": {
+    "badge": "Digital service",
+    "heroTitle": "School transport for your child",
+    "heroSub": "Register your child for organised school transport through the ŽutiBus system of the City of Split. Fill out the form in just a few minutes.",
+    "taglineServices": "Digital services",
+    "taglineEGov": "e-Government",
+    "statCitizens": "For citizens of Split",
+    "statSecure": "Secure & protected",
+    "statFast": "Fast & simple",
+    "formsTitle": "Available forms",
+    "loading": "Loading…",
+    "loadError": "Could not load forms.",
+    "noForms": "No forms available at this time.",
+    "openForm": "Fill out form",
+    "footer": "© {{year}} ŽutiBus Split · Grad Split digital service",
+    "footerCivic": "Republic of Croatia · Split-Dalmatia County"
+  },
   "form": {
     "loading": "Loading form…",
     "notFound": "Form not found.",
