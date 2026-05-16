@@ -31,6 +31,7 @@ export default function SchoolRoutingPage() {
 
   const [schools, setSchools] = useState<SchoolSummary[]>([])
   const [selectedId, setSelectedId] = useState<number | ''>('')
+  const [busCapacity, setBusCapacity] = useState(50)
   const [loading, setLoading] = useState(false)
   const [schoolsError, setSchoolsError] = useState<string | null>(null)
   const [routeError, setRouteError] = useState<string | null>(null)
@@ -95,13 +96,16 @@ export default function SchoolRoutingPage() {
       })
       el.textContent = String(i + 1)
 
+      const stopLabel = stop.name || `${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}`
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([stop.lon, stop.lat])
         .setPopup(
           new maplibregl.Popup({ offset: 14 }).setHTML(
             `<p style="margin:0;font-weight:600">${t('routing.stop', { number: i + 1 })}</p>
-             <p style="margin:2px 0 0;font-size:12px;color:#555">
-               ${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}
+             <p style="margin:2px 0 0;font-size:13px;color:#333">${stopLabel}</p>
+             <p style="margin:4px 0 0;font-size:12px;color:#555">
+               ${t('routing.students')}: ${stop.studentCount} &middot;
+               ${t('routing.arrival')}: ${stop.estimatedArrivalMin} min
              </p>`
           )
         )
@@ -206,7 +210,7 @@ export default function SchoolRoutingPage() {
     setResult(null)
 
     try {
-      const data = await getSchoolRoute(Number(selectedId))
+      const data = await getSchoolRoute(Number(selectedId), busCapacity)
       setResult(data)
     } catch (e) {
       setRouteError(e instanceof Error ? e.message : t('routing.routeError'))
@@ -250,6 +254,19 @@ export default function SchoolRoutingPage() {
             }
           </div>
 
+          {/* Bus capacity */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('routing.busCapacityLabel')}</label>
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={busCapacity}
+              onChange={e => setBusCapacity(Math.max(1, Number(e.target.value) || 1))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-900"
+            />
+          </div>
+
           {/* Action button */}
           <button
             onClick={calculate}
@@ -276,8 +293,21 @@ export default function SchoolRoutingPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <StatCard label={t('routing.busStops')} value={String(result.busStops.length)} />
                   <StatCard label={t('routing.travelTime')} value={formatTime(result.route.timeSec)} />
-                  <div className="col-span-2">
-                    <StatCard label={t('routing.distance')} value={`${result.route.lengthKm.toFixed(1)} km`} />
+                  <StatCard label={t('routing.distance')} value={`${result.route.lengthKm.toFixed(1)} km`} />
+                  <StatCard label={t('routing.totalStudents')} value={String(result.fleet.totalStudents)} />
+                </div>
+              </div>
+
+              {/* Fleet info */}
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-blue-600 font-medium">{t('routing.busesNeeded')}</p>
+                    <p className="text-2xl font-bold text-blue-900 mt-0.5">{result.fleet.busesNeeded}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-blue-500">{t('routing.capacity')}: {result.fleet.busCapacity}</p>
+                    <p className="text-xs text-blue-500">{result.fleet.totalStudents} {t('routing.students').toLowerCase()}</p>
                   </div>
                 </div>
               </div>
@@ -296,17 +326,27 @@ export default function SchoolRoutingPage() {
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   {t('routing.pickupStops', { count: result.busStops.length })}
                 </h3>
-                <div className="space-y-1 max-h-72 overflow-y-auto pr-0.5">
+                <div className="space-y-1.5 max-h-80 overflow-y-auto pr-0.5">
                   {result.busStops.map((stop, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-100 text-xs"
+                      className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-100 text-xs"
                     >
-                      <span className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center font-bold text-gray-900 shrink-0">
+                      <span className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center font-bold text-gray-900 shrink-0 mt-0.5">
                         {i + 1}
                       </span>
-                      <span className="text-gray-600 tabular-nums">
-                        {stop.lat.toFixed(5)},&nbsp;{stop.lon.toFixed(5)}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-800 font-medium truncate">
+                          {stop.name || `${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}`}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5 text-gray-500">
+                          <span>{stop.studentCount} {t('routing.students').toLowerCase()}</span>
+                          <span>&middot;</span>
+                          <span>{stop.estimatedArrivalMin} min</span>
+                        </div>
+                      </div>
+                      <span className="bg-amber-200 text-amber-800 font-bold rounded-full px-1.5 py-0.5 text-[10px] shrink-0 mt-0.5">
+                        {stop.studentCount}
                       </span>
                     </div>
                   ))}

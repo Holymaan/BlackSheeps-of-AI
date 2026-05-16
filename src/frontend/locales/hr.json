@@ -119,7 +119,13 @@
     "calculatingOverlay": "Izračunavanje optimizirane rute…",
     "calculatingSubtext": "Dohvaćanje autobusnih stanica i Valhalla",
     "hint": "Odaberite školu i kliknite Izračunaj rutu za prikaz optimizirane rute.",
-    "stop": "Stanica {{number}}"
+    "stop": "Stanica {{number}}",
+    "students": "Učenici",
+    "arrival": "Dolazak",
+    "totalStudents": "Ukupno učenika",
+    "busesNeeded": "Potrebno autobusa",
+    "capacity": "Kapacitet",
+    "busCapacityLabel": "Kapacitet autobusa (sjedala)"
   },
   "landing": {
     "badge": "Digitalna usluga",

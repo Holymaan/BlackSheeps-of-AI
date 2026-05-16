@@ -117,7 +117,13 @@
     "calculatingOverlay": "Calculating optimised route…",
     "calculatingSubtext": "Querying bus stops and Valhalla",
     "hint": "Select a school and click Calculate Route to see the optimised bus route.",
-    "stop": "Stop {{number}}"
+    "stop": "Stop {{number}}",
+    "students": "Students",
+    "arrival": "Arrival",
+    "totalStudents": "Total Students",
+    "busesNeeded": "Buses Needed",
+    "capacity": "Capacity",
+    "busCapacityLabel": "Bus Capacity (seats)"
   },
   "landing": {
     "badge": "Digital service",

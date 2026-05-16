@@ -95,8 +95,17 @@ export interface SchoolSummary {
 }
 
 export interface BusStopPoint {
+  name: string
   lat: number
   lon: number
+  studentCount: number
+  estimatedArrivalMin: number
+}
+
+export interface FleetInfo {
+  totalStudents: number
+  busCapacity: number
+  busesNeeded: number
 }
 
 export interface SchoolRouteResponse {
@@ -108,6 +117,7 @@ export interface SchoolRouteResponse {
     timeSec: number
     lengthKm: number
   }
+  fleet: FleetInfo
 }
 
 export async function listSchools(): Promise<SchoolSummary[]> {
@@ -116,8 +126,9 @@ export async function listSchools(): Promise<SchoolSummary[]> {
   return res.json()
 }
 
-export async function getSchoolRoute(schoolId: number): Promise<SchoolRouteResponse> {
-  const res = await fetch(`/routing/school/${schoolId}`, {
+export async function getSchoolRoute(schoolId: number, busCapacity?: number): Promise<SchoolRouteResponse> {
+  const params = busCapacity ? `?busCapacity=${busCapacity}` : ''
+  const res = await fetch(`/routing/school/${schoolId}${params}`, {
     method: 'POST',
     headers: authHeaders(),
   })

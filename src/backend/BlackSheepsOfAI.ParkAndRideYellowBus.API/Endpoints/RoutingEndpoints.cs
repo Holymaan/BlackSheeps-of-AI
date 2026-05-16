@@ -11,10 +11,17 @@ namespace BlackSheepsOfAI.ParkAndRideYellowBus.API.Endpoints;
 public sealed record SchoolRouteResponse(
     SchoolRouteInfo School,
     IReadOnlyList<BusStopInfo> BusStops,
-    RouteInfo Route);
+    RouteInfo Route,
+    FleetInfo Fleet);
 
 public sealed record SchoolRouteInfo(int Id, string Name, double Lat, double Lon);
-public sealed record BusStopInfo(double Lat, double Lon);
+
+public sealed record BusStopInfo(
+    string Name,
+    double Lat,
+    double Lon,
+    int StudentCount,
+    double EstimatedArrivalMin);
 
 /// <param name="Legs">
 /// One element per Valhalla trip leg. Each element is an ordered list of
@@ -25,6 +32,11 @@ public sealed record RouteInfo(
     IReadOnlyList<IReadOnlyList<double[]>> Legs,
     double TimeSec,
     double LengthKm);
+
+public sealed record FleetInfo(
+    int TotalStudents,
+    int BusCapacity,
+    int BusesNeeded);
 
 // ── Endpoint ──────────────────────────────────────────────────────────────────
 
@@ -40,8 +52,9 @@ public static class RoutingEndpoints
         // 5. Runs Valhalla optimized route: unique bus stops as waypoints, school as destination.
         // 6. Returns school info, bus stop coordinates, and decoded route geometry.
         app.MapPost("/routing/school/{id:int}",
-            async (int id, ApplicationDbContext db, IValhallaClient valhalla, CancellationToken ct) =>
+            async (int id, int? busCapacity, ApplicationDbContext db, IValhallaClient valhalla, CancellationToken ct) =>
             {
+                var capacity = busCapacity is > 0 ? busCapacity.Value : 50;
                 // 1. School lookup
                 var school = await db.Schools
                     .AsNoTracking()
@@ -66,10 +79,12 @@ public static class RoutingEndpoints
                     return Results.UnprocessableEntity(
                         new { message = "No form submissions with home addresses found for this school." });
 
-                // 3 & 4. Nearest bus stop per home address (deduplicated)
-                var waypoints   = new List<ValhallaLocation>();
-                var busStops    = new List<BusStopInfo>();
-                var seenStopIds = new HashSet<int>();
+                // 3 & 4. Nearest bus stop per home address (deduplicated, with student counts)
+                var waypoints     = new List<ValhallaLocation>();
+                var stopNames     = new List<string>();
+                var stopCoords    = new List<(double Lat, double Lon)>();
+                var studentCounts = new List<int>();
+                var stopIndexById = new Dictionary<int, int>(); // busStopId → index
 
                 foreach (var addr in homeAddresses)
                 {
@@ -81,13 +96,22 @@ public static class RoutingEndpoints
                         .OrderBy(b => b.Geom.Distance(searchPoint))
                         .FirstOrDefaultAsync(ct);
 
-                    if (nearest is null || !seenStopIds.Add(nearest.Id))
-                        continue;
+                    if (nearest is null) continue;
 
-                    var lat = nearest.Geom.Coordinate.Y;
-                    var lon = nearest.Geom.Coordinate.X;
-                    waypoints.Add(new ValhallaLocation { Lat = lat, Lon = lon });
-                    busStops.Add(new BusStopInfo(lat, lon));
+                    if (stopIndexById.TryGetValue(nearest.Id, out var idx))
+                    {
+                        studentCounts[idx]++;
+                    }
+                    else
+                    {
+                        var lat = nearest.Geom.Coordinate.Y;
+                        var lon = nearest.Geom.Coordinate.X;
+                        stopIndexById[nearest.Id] = waypoints.Count;
+                        waypoints.Add(new ValhallaLocation { Lat = lat, Lon = lon });
+                        stopNames.Add(nearest.Name ?? "");
+                        stopCoords.Add((lat, lon));
+                        studentCounts.Add(1);
+                    }
                 }
 
                 var schoolLat = school.Geom.Coordinate.Y;
@@ -122,8 +146,10 @@ public static class RoutingEndpoints
                     .Select(l => l.OriginalIndex)
                     .ToList();
 
-                // Reorder busStops to match the visit order so the sidebar list stays in sync.
-                var orderedBusStops = visitOrder.Select(i => busStops[i]).ToList();
+                // Reorder stop data to match visit order (arrival times filled after routing).
+                var orderedNames    = visitOrder.Select(i => stopNames[i]).ToList();
+                var orderedCoords   = visitOrder.Select(i => stopCoords[i]).ToList();
+                var orderedStudents = visitOrder.Select(i => studentCounts[i]).ToList();
 
                 // 5c. Re-route with break_through at every intermediate stop so Valhalla
                 //     cannot insert a U-turn at any pickup point.
@@ -142,10 +168,11 @@ public static class RoutingEndpoints
                     { Lat = schoolLat, Lon = schoolLon, Type = "break" };
 
                 List<string> shapes;
+                List<double> legTimesSec;
                 double timeSec, lengthKm;
                 try
                 {
-                    (shapes, timeSec, lengthKm) =
+                    (shapes, legTimesSec, timeSec, lengthKm) =
                         await GetChunkedRouteAsync(valhalla, breakThroughStops, schoolLocation, ct);
                 }
                 catch (HttpRequestException ex)
@@ -155,7 +182,27 @@ public static class RoutingEndpoints
                         statusCode: 502);
                 }
 
-                // 6. Build enriched response
+                // 6. Compute estimated arrival at each stop (cumulative leg times).
+                //    Stop 0 = departure point (arrival 0 min).
+                //    Leg[j] connects stop j → stop j+1, so arrival at stop i = sum(leg[0..i-1]).
+                var orderedBusStops = new List<BusStopInfo>();
+                double cumulativeSec = 0;
+                for (int i = 0; i < orderedCoords.Count; i++)
+                {
+                    orderedBusStops.Add(new BusStopInfo(
+                        Name:                orderedNames[i],
+                        Lat:                 orderedCoords[i].Lat,
+                        Lon:                 orderedCoords[i].Lon,
+                        StudentCount:        orderedStudents[i],
+                        EstimatedArrivalMin: Math.Round(cumulativeSec / 60.0, 1)));
+                    if (i < legTimesSec.Count)
+                        cumulativeSec += legTimesSec[i];
+                }
+
+                // 7. Fleet sizing
+                var totalStudents = orderedStudents.Sum();
+                var busesNeeded   = (int)Math.Ceiling((double)totalStudents / capacity);
+
                 var legs = shapes
                     .Select(s => (IReadOnlyList<double[]>)DecodePolyline(s))
                     .ToList();
@@ -170,7 +217,11 @@ public static class RoutingEndpoints
                     Route: new RouteInfo(
                         Legs:      legs,
                         TimeSec:   timeSec,
-                        LengthKm:  lengthKm));
+                        LengthKm:  lengthKm),
+                    Fleet: new FleetInfo(
+                        TotalStudents: totalStudents,
+                        BusCapacity:   capacity,
+                        BusesNeeded:   busesNeeded));
 
                 return Results.Ok(response);
             })
@@ -185,10 +236,10 @@ public static class RoutingEndpoints
     /// <summary>
     /// Routes through <paramref name="stops"/> (all typed <c>break_through</c>) ending at
     /// <paramref name="destination"/> (<c>break</c>), splitting into chunks of 18 stops to
-    /// stay under Valhalla's 20-location-per-request limit.  The leg shapes and summary
-    /// totals from every chunk are merged into a single result.
+    /// stay under Valhalla's 20-location-per-request limit.  Returns per-leg shapes,
+    /// per-leg durations, and cumulative totals.
     /// </summary>
-    private static async Task<(List<string> Shapes, double TimeSec, double LengthKm)>
+    private static async Task<(List<string> Shapes, List<double> LegTimesSec, double TimeSec, double LengthKm)>
         GetChunkedRouteAsync(
             IValhallaClient valhalla,
             List<ValhallaLocation> stops,
@@ -197,7 +248,8 @@ public static class RoutingEndpoints
     {
         const int chunkSize = 18; // 18 intermediate stops + 1 end = 19 ≤ 20 limit
 
-        var allShapes  = new List<string>();
+        var allShapes   = new List<string>();
+        var allLegTimes = new List<double>();
         double totalTime   = 0;
         double totalLength = 0;
 
@@ -206,9 +258,6 @@ public static class RoutingEndpoints
             var chunkStops = stops.Skip(i).Take(chunkSize).ToList();
             bool isLast    = i + chunkSize >= stops.Count;
 
-            // Non-final chunks end at the first stop of the next chunk (bridge point),
-            // typed as "break" so Valhalla closes the leg there.
-            // The next iteration re-uses that same coordinate as its starting stop.
             ValhallaLocation endLocation;
             if (isLast)
             {
@@ -229,11 +278,12 @@ public static class RoutingEndpoints
                 ct);
 
             allShapes.AddRange(chunkResponse.Trip.Legs.Select(l => l.Shape));
+            allLegTimes.AddRange(chunkResponse.Trip.Legs.Select(l => l.Summary.Time));
             totalTime   += chunkResponse.Trip.Summary.Time;
             totalLength += chunkResponse.Trip.Summary.Length;
         }
 
-        return (allShapes, totalTime, totalLength);
+        return (allShapes, allLegTimes, totalTime, totalLength);
     }
 
     /// <summary>
