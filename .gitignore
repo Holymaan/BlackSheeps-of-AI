@@ -1,0 +1,121 @@
+# ---------------------------------------------------------------------------
+# Visual Studio / C# (.NET)
+# ---------------------------------------------------------------------------
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache / user-specific files
+.vs/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.userprefs
+*.csproj.user
+
+# Build / test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+[Dd]ebugPS/
+[Rr]eleasePS/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+TestResults/
+
+# .NET artifacts
+*.pdb
+*.cache
+*.dbmdl
+*.dbproj.schemaview
+*.tlog
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+.nuget/
+nuget.exe
+
+# Code coverage
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# ASP.NET / Entity Framework
+appsettings.*.local.json
+*.mdf
+*.ldf
+*.ndf
+
+# ---------------------------------------------------------------------------
+# VS Code
+# ---------------------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/
+*.code-workspace
+
+# ---------------------------------------------------------------------------
+# React / Node
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Cache
+.eslintcache
+.parcel-cache/
+.cache/
+.vite/
+
+# Package manager artifacts
+*.tgz
+
+# ---------------------------------------------------------------------------
+# OS-generated files
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
