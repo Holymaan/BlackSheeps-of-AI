@@ -22,7 +22,8 @@ public sealed record BusStopInfo(
     double Lon,
     int StudentCount,
     double EstimatedArrivalMin,
-    IReadOnlyList<string> StudentNames);
+    IReadOnlyList<string> StudentNames,
+    int BusNumber);
 
 /// <param name="Legs">
 /// One element per Valhalla trip leg. Each element is an ordered list of
@@ -193,20 +194,32 @@ public static class RoutingEndpoints
                         statusCode: 502);
                 }
 
-                // 6. Compute estimated arrival at each stop (cumulative leg times).
-                //    Stop 0 = departure point (arrival 0 min).
-                //    Leg[j] connects stop j → stop j+1, so arrival at stop i = sum(leg[0..i-1]).
+                // 6. Compute estimated arrival at each stop + assign bus numbers.
+                //    A new bus starts when the cumulative student count on the current bus
+                //    would exceed capacity.
                 var orderedBusStops = new List<BusStopInfo>();
                 double cumulativeSec = 0;
+                int currentBus = 1;
+                int studentsOnBus = 0;
+
                 for (int i = 0; i < orderedCoords.Count; i++)
                 {
+                    // Would adding this stop's students overflow the current bus?
+                    if (studentsOnBus + orderedStudents[i] > capacity && studentsOnBus > 0)
+                    {
+                        currentBus++;
+                        studentsOnBus = 0;
+                    }
+                    studentsOnBus += orderedStudents[i];
+
                     orderedBusStops.Add(new BusStopInfo(
                         Name:                orderedNames[i],
                         Lat:                 orderedCoords[i].Lat,
                         Lon:                 orderedCoords[i].Lon,
                         StudentCount:        orderedStudents[i],
                         EstimatedArrivalMin: Math.Round(cumulativeSec / 60.0, 1),
-                        StudentNames:        orderedStudentNames[i]));
+                        StudentNames:        orderedStudentNames[i],
+                        BusNumber:           currentBus));
                     if (i < legTimesSec.Count)
                         cumulativeSec += legTimesSec[i];
                 }

@@ -123,7 +123,8 @@
     "totalStudents": "Total Students",
     "busesNeeded": "Buses Needed",
     "capacity": "Capacity",
-    "busCapacityLabel": "Bus Capacity (seats)"
+    "busCapacityLabel": "Bus Capacity (seats)",
+    "bus": "Bus"
   },
   "landing": {
     "badge": "Digital service",

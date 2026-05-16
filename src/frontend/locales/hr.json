@@ -125,7 +125,8 @@
     "totalStudents": "Ukupno učenika",
     "busesNeeded": "Potrebno autobusa",
     "capacity": "Kapacitet",
-    "busCapacityLabel": "Kapacitet autobusa (sjedala)"
+    "busCapacityLabel": "Kapacitet autobusa (sjedala)",
+    "bus": "Autobus"
   },
   "landing": {
     "badge": "Digitalna usluga",
