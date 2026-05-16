@@ -77,7 +77,7 @@ export default function ProjectListPage() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <Link
-                      to={`/form/${f.id}`}
+                      to={`/prijava/${f.id}`}
                       target="_blank"
                       className="text-xs text-gray-500 hover:text-bus-navy"
                     >
