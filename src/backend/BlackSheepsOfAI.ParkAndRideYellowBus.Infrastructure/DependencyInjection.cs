@@ -1,4 +1,5 @@
 using BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure.Persistence;
+using BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure.Valhalla;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,17 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, o => o.UseNetTopologySuite())
                    .UseSnakeCaseNamingConvention());
+
+        // Valhalla routing engine — typed HTTP client
+        var valhallaOptions = configuration
+            .GetSection(ValhallaOptions.SectionName)
+            .Get<ValhallaOptions>() ?? new ValhallaOptions();
+
+        services
+            .AddHttpClient<IValhallaMatrixClient, ValhallaMatrixClient>(client =>
+            {
+                client.BaseAddress = new Uri(valhallaOptions.BaseUrl);
+            });
 
         return services;
     }
