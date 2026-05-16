@@ -61,7 +61,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 relative overflow-hidden">
         <Outlet />
       </main>
     </div>

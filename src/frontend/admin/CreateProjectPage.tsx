@@ -117,7 +117,7 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="absolute inset-0 p-8 overflow-auto">
       <h1 className="text-2xl font-display font-bold text-gray-900 mb-6">{t('createProject.title')}</h1>
 
       {/* Meta */}

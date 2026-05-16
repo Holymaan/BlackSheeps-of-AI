@@ -67,7 +67,7 @@ export default function SubmissionDetailPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="absolute inset-0 p-8 overflow-auto">
       <Link
         to={`/admin/projects/${id}`}
         className="text-sm text-gray-500 hover:text-bus-navy mb-4 inline-block"

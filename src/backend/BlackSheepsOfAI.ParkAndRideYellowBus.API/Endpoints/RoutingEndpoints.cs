@@ -102,7 +102,17 @@ public static class RoutingEndpoints
                     Costing = "auto",
                 };
 
-                var route = await valhalla.GetOptimizedRouteAsync(valhallaRequest, ct);
+                ValhallaOptimizedRouteResponse route;
+                try
+                {
+                    route = await valhalla.GetOptimizedRouteAsync(valhallaRequest, ct);
+                }
+                catch (HttpRequestException ex)
+                {
+                    return Results.Problem(
+                        detail: $"Valhalla routing engine error: {ex.Message}",
+                        statusCode: 502);
+                }
 
                 // 6. Build enriched response
                 var legs = route.Trip.Legs
@@ -164,11 +174,11 @@ public static class RoutingEndpoints
         return result;
     }
 
-    /// <summary>Reads a string value from the submission values dictionary.</summary>
     private static string? GetStringValue(Dictionary<string, object?> values, string key)
     {
         if (!values.TryGetValue(key, out var raw)) return null;
-        return raw is JsonElement je ? je.GetString() : raw?.ToString();
+        if (raw is not JsonElement je) return raw?.ToString();
+        return je.ValueKind == JsonValueKind.Number ? je.GetRawText() : je.GetString();
     }
 
     /// <summary>

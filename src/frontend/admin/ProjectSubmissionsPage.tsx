@@ -38,7 +38,7 @@ export default function ProjectSubmissionsPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="absolute inset-0 p-8 overflow-auto">
       <div className="mb-6">
         <Link to="/admin" className="text-sm text-gray-500 hover:text-bus-navy mb-2 inline-block">
           {t('projectSubmissions.backToProjects')}

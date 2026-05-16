@@ -17,7 +17,7 @@ export default function ProjectListPage() {
   }, [t])
 
   return (
-    <div className="p-8">
+    <div className="absolute inset-0 p-8 overflow-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-display font-bold text-gray-900">{t('projectList.title')}</h1>

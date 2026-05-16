@@ -181,6 +181,7 @@ export default function SchoolRoutingPage() {
       }
     }
 
+    map.resize()
     if (!bounds.isEmpty()) {
       map.fitBounds(bounds, { padding: 70, maxZoom: 14, duration: 800 })
     }
@@ -216,7 +217,7 @@ export default function SchoolRoutingPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full">
+    <div className="absolute inset-0 flex flex-col">
       {/* Page header */}
       <div className="px-8 py-5 border-b border-gray-200 bg-white shrink-0">
         <h1 className="text-2xl font-display font-bold text-gray-900">{t('routing.title')}</h1>
@@ -318,7 +319,9 @@ export default function SchoolRoutingPage() {
 
         {/* ── Map ── */}
         <div className="relative flex-1">
-          <div ref={mapContainerRef} className="absolute inset-0" />
+          <div className="absolute inset-0">
+            <div ref={mapContainerRef} className="w-full h-full" />
+          </div>
 
           {/* Loading overlay */}
           {loading && (
