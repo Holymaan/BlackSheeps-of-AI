@@ -52,8 +52,9 @@ if (app.Environment.IsDevelopment())
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.Migrate();
+        db.Database.Migrate();        // ← tables guaranteed to exist after this
         SeedData.EnsureSampleData(db);
+        SeedData.EnsureGeoData(db);   // schools + bus stops, idempotent
     }
 
     // OpenAPI document served at /openapi/v1.json
