@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgis/postgis:16-3.4
     container_name: postgres
     restart: unless-stopped
     environment:
@@ -26,6 +26,24 @@ services:
     depends_on:
       - postgres
 
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    platform: linux/amd64
+    container_name: valhalla
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      - tile_urls=https://download.geofabrik.de/europe/croatia-latest.osm.pbf
+      - serve_tiles=True
+      - build_elevation=False
+      - build_admins=True
+      - build_time_zones=True
+      - force_rebuild=False
+    volumes:
+      - valhalla_data:/custom_files
+
 volumes:
   postgres_data:
   pgadmin_data:
+  valhalla_data:
