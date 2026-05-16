@@ -1,0 +1,62 @@
+{
+  "id": "3f1a7c9e-2b8d-4e6f-a1b2-c3d4e5f60718",
+  "title": "Child School Registration",
+  "description": "Park & Ride ŽutiBus — register a child for school transport.",
+  "version": 1,
+  "fields": [
+    {
+      "key": "parentOib",
+      "label": "Parent OIB",
+      "type": "oib",
+      "required": true,
+      "placeholder": "12345678901",
+      "helpText": "Croatian personal identification number of the parent/guardian — exactly 11 digits.",
+      "validation": {
+        "pattern": "^\\d{11}$",
+        "minLength": 11,
+        "maxLength": 11,
+        "errorMessage": "OIB must be exactly 11 digits."
+      }
+    },
+    {
+      "key": "name",
+      "label": "Name",
+      "type": "string",
+      "required": true,
+      "placeholder": "Ivan"
+    },
+    {
+      "key": "lastName",
+      "label": "Last name",
+      "type": "string",
+      "required": true,
+      "placeholder": "Horvat"
+    },
+    {
+      "key": "childName",
+      "label": "Child name",
+      "type": "string",
+      "required": true,
+      "placeholder": "Marko"
+    },
+    {
+      "key": "school",
+      "label": "School",
+      "type": "select",
+      "required": true,
+      "helpText": "Select the child's school.",
+      "options": [
+        { "id": "os-ivana-gundulica", "displayName": "OŠ Ivana Gundulića" },
+        { "id": "os-antuna-mihanovica", "displayName": "OŠ Antuna Mihanovića" },
+        { "id": "os-augusta-senoe", "displayName": "OŠ Augusta Šenoe" }
+      ]
+    },
+    {
+      "key": "homeAddress",
+      "label": "Home address",
+      "type": "addresspoint",
+      "required": true,
+      "helpText": "Pick the pickup address on the map."
+    }
+  ]
+}

@@ -4,3 +4,61 @@ GET {{BlackSheepsOfAI.ParkAndRideYellowBus.API_HostAddress}}/health
 Accept: application/json
 
 ###
+
+# Create a new form definition (id is assigned server-side).
+POST {{BlackSheepsOfAI.ParkAndRideYellowBus.API_HostAddress}}/form
+Content-Type: application/json
+
+{
+  "title": "Example Form",
+  "description": "A form created via the API.",
+  "version": 1,
+  "fields": [
+    {
+      "key": "email",
+      "label": "Email",
+      "type": "email",
+      "required": true,
+      "validation": {
+        "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+        "errorMessage": "Enter a valid email address."
+      }
+    }
+  ]
+}
+
+###
+
+# Fetch the seeded sample school-registration form.
+GET {{BlackSheepsOfAI.ParkAndRideYellowBus.API_HostAddress}}/form/3f1a7c9e-2b8d-4e6f-a1b2-c3d4e5f60718
+Accept: application/json
+
+###
+
+POST {{BlackSheepsOfAI.ParkAndRideYellowBus.API_HostAddress}}/form/3f1a7c9e-2b8d-4e6f-a1b2-c3d4e5f60718/submission
+Content-Type: application/json
+
+{
+  "formVersion": 1,
+  "values": {
+    "parentOib": "12345678901",
+    "name": "Ivan",
+    "lastName": "Horvat",
+    "childName": "Marko",
+    "school": "os-ivana-gundulica",
+    "homeAddress": {
+      "address": "Ilica 1, 10000 Zagreb",
+      "lat": 45.8131,
+      "lon": 15.9775
+    }
+  }
+}
+
+###
+
+# Read back a stored submission — replace the second GUID with the
+# submissionId returned by the POST above.
+GET {{BlackSheepsOfAI.ParkAndRideYellowBus.API_HostAddress}}/form/3f1a7c9e-2b8d-4e6f-a1b2-c3d4e5f60718/submission/00000000-0000-0000-0000-000000000000
+Accept: application/json
+
+###

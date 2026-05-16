@@ -1,3 +1,4 @@
+using BlackSheepsOfAI.ParkAndRideYellowBus.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure.Persistence;
@@ -15,8 +16,11 @@ public class ApplicationDbContext : DbContext
     {
     }
 
-    // Example — add real entities later:
-    // public DbSet<Submission> Submissions => Set<Submission>();
+    /// <summary>Form definitions renderable by the frontend.</summary>
+    public DbSet<FormDefinition> FormDefinitions => Set<FormDefinition>();
+
+    /// <summary>Submitted forms, persisted for further processing.</summary>
+    public DbSet<FormSubmission> FormSubmissions => Set<FormSubmission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

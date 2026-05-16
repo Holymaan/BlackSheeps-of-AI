@@ -1,10 +1,20 @@
+using System.Text.Json.Serialization;
+using BlackSheepsOfAI.ParkAndRideYellowBus.API;
+using BlackSheepsOfAI.ParkAndRideYellowBus.API.Endpoints;
 using BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure;
+using BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Omit null properties from JSON responses so the wire format stays compact
+// and matches the form schema examples (optional fields are simply absent).
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull);
 
 // EF Core / PostgreSQL — see Infrastructure/DependencyInjection.cs
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -14,6 +24,15 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    // Apply any pending EF Core migrations on startup (development only). In
+    // production, run `dotnet ef database update` as a deliberate deploy step.
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Database.Migrate();
+        SeedData.EnsureSampleData(db);
+    }
+
     // OpenAPI document served at /openapi/v1.json
     app.MapOpenApi();
 }
@@ -23,5 +42,8 @@ app.UseHttpsRedirection();
 // Liveness probe — also a quick smoke test that the host is running.
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
    .WithName("HealthCheck");
+
+// Form definition endpoints — see Endpoints/FormEndpoints.cs
+app.MapFormEndpoints();
 
 app.Run();

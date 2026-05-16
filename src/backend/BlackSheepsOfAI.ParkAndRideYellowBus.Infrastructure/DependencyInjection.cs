@@ -20,7 +20,8 @@ public static class DependencyInjection
                 "Connection string 'DefaultConnection' was not found in configuration.");
 
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString)
+                   .UseSnakeCaseNamingConvention());
 
         return services;
     }
