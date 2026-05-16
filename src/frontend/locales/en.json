@@ -124,6 +124,10 @@
     "busesNeeded": "Buses Needed",
     "capacity": "Capacity",
     "busCapacityLabel": "Bus Capacity (seats)",
+    "departureTimeLabel": "Departure Time",
+    "schoolArrival": "arr.",
+    "hideBus": "Hide route",
+    "showBus": "Show route",
     "bus": "Bus"
   },
   "landing": {

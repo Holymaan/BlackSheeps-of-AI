@@ -11,7 +11,7 @@ namespace BlackSheepsOfAI.ParkAndRideYellowBus.API.Endpoints;
 public sealed record SchoolRouteResponse(
     SchoolRouteInfo School,
     IReadOnlyList<BusStopInfo> BusStops,
-    RouteInfo Route,
+    IReadOnlyList<BusRouteInfo> BusRoutes,
     FleetInfo Fleet);
 
 public sealed record SchoolRouteInfo(int Id, string Name, double Lat, double Lon);
@@ -25,12 +25,11 @@ public sealed record BusStopInfo(
     IReadOnlyList<string> StudentNames,
     int BusNumber);
 
-/// <param name="Legs">
-/// One element per Valhalla trip leg. Each element is an ordered list of
-/// <c>[longitude, latitude]</c> pairs (GeoJSON coordinate order) decoded from
-/// Valhalla's 6-precision encoded polyline.
-/// </param>
-public sealed record RouteInfo(
+/// <summary>
+/// One independently-routed bus: its own legs to school, time, and distance.
+/// </summary>
+public sealed record BusRouteInfo(
+    int BusNumber,
     IReadOnlyList<IReadOnlyList<double[]>> Legs,
     double TimeSec,
     double LengthKm);
@@ -163,74 +162,94 @@ public static class RoutingEndpoints
                 var orderedStudents     = visitOrder.Select(i => studentCounts[i]).ToList();
                 var orderedStudentNames = visitOrder.Select(i => (IReadOnlyList<string>)studentNamesList[i]).ToList();
 
-                // 5c. Re-route with break_through at every intermediate stop so Valhalla
-                //     cannot insert a U-turn at any pickup point.
-                //     Valhalla caps /route at 20 locations, so we chunk into batches of 18
-                //     stops + 1 bridge/destination, stitching the legs afterwards.
-                var breakThroughStops = visitOrder
-                    .Select(i => new ValhallaLocation
-                    {
-                        Lat  = waypoints[i].Lat,
-                        Lon  = waypoints[i].Lon,
-                        Type = "break_through",
-                    })
-                    .ToList();
-
+                // 5c. Assign bus numbers based on capacity, then route each bus
+                //     independently to school.
                 var schoolLocation = new ValhallaLocation
                     { Lat = schoolLat, Lon = schoolLon, Type = "break" };
 
-                List<string> shapes;
-                List<double> legTimesSec;
-                double timeSec, lengthKm;
-                try
-                {
-                    (shapes, legTimesSec, timeSec, lengthKm) =
-                        await GetChunkedRouteAsync(valhalla, breakThroughStops, schoolLocation, ct);
-                }
-                catch (HttpRequestException ex)
-                {
-                    return Results.Problem(
-                        detail: $"Valhalla routing engine error (route): {ex.Message}",
-                        statusCode: 502);
-                }
-
-                // 6. Compute estimated arrival at each stop + assign bus numbers.
-                //    A new bus starts when the cumulative student count on the current bus
-                //    would exceed capacity.
-                var orderedBusStops = new List<BusStopInfo>();
-                double cumulativeSec = 0;
+                // First pass — assign bus numbers.
                 int currentBus = 1;
                 int studentsOnBus = 0;
-
+                var busAssignments = new int[orderedCoords.Count];
                 for (int i = 0; i < orderedCoords.Count; i++)
                 {
-                    // Would adding this stop's students overflow the current bus?
                     if (studentsOnBus + orderedStudents[i] > capacity && studentsOnBus > 0)
                     {
                         currentBus++;
                         studentsOnBus = 0;
                     }
                     studentsOnBus += orderedStudents[i];
+                    busAssignments[i] = currentBus;
+                }
+                int totalBuses = currentBus;
 
-                    orderedBusStops.Add(new BusStopInfo(
-                        Name:                orderedNames[i],
-                        Lat:                 orderedCoords[i].Lat,
-                        Lon:                 orderedCoords[i].Lon,
-                        StudentCount:        orderedStudents[i],
-                        EstimatedArrivalMin: Math.Round(cumulativeSec / 60.0, 1),
-                        StudentNames:        orderedStudentNames[i],
-                        BusNumber:           currentBus));
-                    if (i < legTimesSec.Count)
-                        cumulativeSec += legTimesSec[i];
+                // Second pass — route each bus independently and fill arrival times.
+                var orderedBusStops = new List<BusStopInfo>();
+                var busRoutes       = new List<BusRouteInfo>();
+
+                for (int bus = 1; bus <= totalBuses; bus++)
+                {
+                    // Collect indices belonging to this bus.
+                    var busIndices = Enumerable.Range(0, orderedCoords.Count)
+                        .Where(i => busAssignments[i] == bus)
+                        .ToList();
+
+                    // Build break_through waypoints for this bus.
+                    var busWaypoints = busIndices
+                        .Select(i => new ValhallaLocation
+                        {
+                            Lat  = orderedCoords[i].Lat,
+                            Lon  = orderedCoords[i].Lon,
+                            Type = "break_through",
+                        })
+                        .ToList();
+
+                    List<string> shapes;
+                    List<double> legTimesSec;
+                    double timeSec, lengthKm;
+                    try
+                    {
+                        (shapes, legTimesSec, timeSec, lengthKm) =
+                            await GetChunkedRouteAsync(valhalla, busWaypoints, schoolLocation, ct);
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        return Results.Problem(
+                            detail: $"Valhalla routing engine error (bus {bus}): {ex.Message}",
+                            statusCode: 502);
+                    }
+
+                    // Decode legs for this bus.
+                    var legs = shapes
+                        .Select(s => (IReadOnlyList<double[]>)DecodePolyline(s))
+                        .ToList();
+
+                    busRoutes.Add(new BusRouteInfo(
+                        BusNumber: bus,
+                        Legs:      legs,
+                        TimeSec:   timeSec,
+                        LengthKm:  lengthKm));
+
+                    // Compute per-stop estimated arrival within this bus's route.
+                    double cumulativeSec = 0;
+                    for (int j = 0; j < busIndices.Count; j++)
+                    {
+                        int i = busIndices[j];
+                        orderedBusStops.Add(new BusStopInfo(
+                            Name:                orderedNames[i],
+                            Lat:                 orderedCoords[i].Lat,
+                            Lon:                 orderedCoords[i].Lon,
+                            StudentCount:        orderedStudents[i],
+                            EstimatedArrivalMin: Math.Round(cumulativeSec / 60.0, 1),
+                            StudentNames:        orderedStudentNames[i],
+                            BusNumber:           bus));
+                        if (j < legTimesSec.Count)
+                            cumulativeSec += legTimesSec[j];
+                    }
                 }
 
-                // 7. Fleet sizing
+                // 6. Fleet sizing
                 var totalStudents = orderedStudents.Sum();
-                var busesNeeded   = (int)Math.Ceiling((double)totalStudents / capacity);
-
-                var legs = shapes
-                    .Select(s => (IReadOnlyList<double[]>)DecodePolyline(s))
-                    .ToList();
 
                 var response = new SchoolRouteResponse(
                     School: new SchoolRouteInfo(
@@ -239,14 +258,11 @@ public static class RoutingEndpoints
                         schoolLat,
                         schoolLon),
                     BusStops: orderedBusStops,
-                    Route: new RouteInfo(
-                        Legs:      legs,
-                        TimeSec:   timeSec,
-                        LengthKm:  lengthKm),
+                    BusRoutes: busRoutes,
                     Fleet: new FleetInfo(
                         TotalStudents: totalStudents,
                         BusCapacity:   capacity,
-                        BusesNeeded:   busesNeeded));
+                        BusesNeeded:   totalBuses));
 
                 return Results.Ok(response);
             })

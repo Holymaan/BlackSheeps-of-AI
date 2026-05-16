@@ -110,15 +110,18 @@ export interface FleetInfo {
   busesNeeded: number
 }
 
+export interface BusRouteInfo {
+  busNumber: number
+  /** Each leg is an ordered list of [longitude, latitude] pairs. */
+  legs: number[][][]
+  timeSec: number
+  lengthKm: number
+}
+
 export interface SchoolRouteResponse {
   school: SchoolSummary
   busStops: BusStopPoint[]
-  route: {
-    /** Each leg is an ordered list of [longitude, latitude] pairs. */
-    legs: number[][][]
-    timeSec: number
-    lengthKm: number
-  }
+  busRoutes: BusRouteInfo[]
   fleet: FleetInfo
 }
 

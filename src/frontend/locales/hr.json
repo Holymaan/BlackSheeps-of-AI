@@ -126,6 +126,10 @@
     "busesNeeded": "Potrebno autobusa",
     "capacity": "Kapacitet",
     "busCapacityLabel": "Kapacitet autobusa (sjedala)",
+    "departureTimeLabel": "Vrijeme polaska",
+    "schoolArrival": "dol.",
+    "hideBus": "Sakrij rutu",
+    "showBus": "Prikaži rutu",
     "bus": "Autobus"
   },
   "landing": {
