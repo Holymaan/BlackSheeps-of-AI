@@ -46,4 +46,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 // Form definition endpoints — see Endpoints/FormEndpoints.cs
 app.MapFormEndpoints();
 
+// Routing endpoints — see Endpoints/RoutingEndpoints.cs
+app.MapRoutingEndpoints();
+
 app.Run();
