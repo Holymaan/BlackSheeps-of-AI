@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import './FormPage.css'
@@ -18,43 +19,6 @@ interface MapboxFeature {
   place_name: string
   center: [number, number]
   text: string
-}
-
-/* ── Embedded form definition ───────────────────────────────────── */
-const FORM: FormDefinition = {
-  id: '3f1a7c9e-2b8d-4e6f-a1b2-c3d4e5f60718',
-  title: 'Prijava djeteta za školski prijevoz',
-  description: 'Usluga Grada Splita — prijavite dijete na školski prijevoz ŽutiBus.',
-  version: 1,
-  fields: [
-    {
-      key: 'parentOib',
-      label: 'OIB roditelja',
-      type: FieldType.Oib,
-      required: true,
-      placeholder: '12345678901',
-      helpText: 'Hrvatski osobni identifikacijski broj — točno 11 znamenki.',
-      validation: { pattern: '^\\d{11}$', minLength: 11, maxLength: 11, errorMessage: 'OIB mora imati točno 11 znamenki.' },
-    },
-    { key: 'name',      label: 'Ime',           type: FieldType.String, required: true, placeholder: 'Ivan'   },
-    { key: 'lastName',  label: 'Prezime',        type: FieldType.String, required: true, placeholder: 'Horvat' },
-    { key: 'childName',     label: 'Ime djeteta',                         type: FieldType.String,  required: true,  placeholder: 'Marko' },
-    { key: 'childDisabled', label: 'Dijete s posebnim potrebama',         type: FieldType.Boolean, required: false, helpText: 'Označite ako dijete ima posebne potrebe ili teškoće u razvoju.' },
-    {
-      key: 'school',
-      label: 'Škola',
-      type: FieldType.Select,
-      required: true,
-      helpText: 'Odaberite školu djeteta.',
-      options: [
-        { id: 'os-ivana-gundulica',   displayName: 'OŠ Ivana Gundulića'   },
-        { id: 'os-antuna-mihanovica', displayName: 'OŠ Antuna Mihanovića' },
-        { id: 'os-augusta-senoe',     displayName: 'OŠ Augusta Šenoe'     },
-      ],
-    },
-    { key: 'homeAddress', label: 'Kućna adresa', type: FieldType.AddressPoint, required: true },
-    { key: 'gdprConsent', label: 'Suglasnost za obradu osobnih podataka', type: FieldType.Boolean, required: true, helpText: 'Slažem se s obradom osobnih podataka u svrhu pružanja usluge školskog prijevoza ŽutiBus, sukladno Uredbi (EU) 2016/679 (GDPR).' },
-  ],
 }
 
 /* ── Validation ─────────────────────────────────────────────────── */
@@ -94,12 +58,11 @@ function ErrLine({ msg }: { msg?: string }) {
 
 /* ── Address field ──────────────────────────────────────────────── */
 function AddressField({
-  value, onChange, error, hint,
+  value, onChange, error,
 }: {
   value: AddressPoint | null
   onChange: (v: AddressPoint | null) => void
   error?: string
-  hint?: string
 }) {
   const [addr, setAddr] = useState(value?.address ?? '')
   const [suggestions, setSuggestions] = useState<MapboxFeature[]>([])
@@ -159,7 +122,7 @@ function AddressField({
         const data = await res.json()
         setSuggestions(data.features ?? [])
         setOpen((data.features?.length ?? 0) > 0)
-      } catch { /* network error — silently skip */ }
+      } catch { /* silently skip */ }
     }, 300)
   }
 
@@ -175,10 +138,7 @@ function AddressField({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-      {/* Mapbox map — view only */}
       <div ref={mapContainerRef} className="fp-map"/>
-
-      {/* Address input with autocomplete */}
       <div style={{ position: 'relative' }}>
         <div className="fp-input-wrap">
           <span className="fp-input-ico">
@@ -201,11 +161,7 @@ function AddressField({
         {open && suggestions.length > 0 && (
           <ul className="fp-suggestions">
             {suggestions.map(feat => (
-              <li
-                key={feat.id}
-                className="fp-suggestion-item"
-                onMouseDown={() => selectSuggestion(feat)}
-              >
+              <li key={feat.id} className="fp-suggestion-item" onMouseDown={() => selectSuggestion(feat)}>
                 <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ flexShrink: 0, opacity: 0.5 }}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -217,8 +173,6 @@ function AddressField({
           </ul>
         )}
       </div>
-
-      {hint && !error && <p className="fp-hint">{hint}</p>}
       <ErrLine msg={error}/>
     </div>
   )
@@ -251,6 +205,100 @@ function CheckboxField({
       </label>
       {hint && !error && <p className="fp-hint fp-hint--indented">{hint}</p>}
       {error && <div className="fp-hint--indented"><ErrLine msg={error}/></div>}
+    </div>
+  )
+}
+
+/* ── Label helper ───────────────────────────────────────────────── */
+function Label({ text, required }: { text: string; required?: boolean }) {
+  return (
+    <span className="fp-label">
+      {text}
+      {required && <span className="fp-required">*</span>}
+    </span>
+  )
+}
+
+/* ── Generic field renderer ─────────────────────────────────────── */
+function FieldRenderer({ field, value, error, set, touch }: {
+  field: FormFieldDef
+  value: FieldValue
+  error: string | undefined
+  set: (val: FieldValue) => void
+  touch: (val?: FieldValue) => void
+}) {
+  const errCls = error ? 'fp-input--err' : ''
+
+  if (field.type === FieldType.Boolean) {
+    return (
+      <CheckboxField
+        label={field.label}
+        value={(value as boolean) ?? false}
+        onChange={v => { set(v); touch(v) }}
+        error={error}
+        hint={field.helpText}
+        required={field.required}
+      />
+    )
+  }
+
+  if (field.type === FieldType.AddressPoint) {
+    return (
+      <div className="fp-field">
+        <Label text={field.label} required={field.required}/>
+        <AddressField
+          value={value as AddressPoint | null}
+          onChange={v => { set(v); touch(v) }}
+          error={error}
+        />
+      </div>
+    )
+  }
+
+  if (field.type === FieldType.Select) {
+    return (
+      <div className="fp-field">
+        <Label text={field.label} required={field.required}/>
+        <div className="fp-input-wrap">
+          <select
+            className={`fp-input fp-select ${errCls}`}
+            value={(value as string) ?? ''}
+            onChange={e => { set(e.target.value); touch(e.target.value) }}
+          >
+            <option value="" disabled>Odaberite…</option>
+            {field.options?.map(o => (
+              <option key={o.id} value={o.id}>{o.displayName}</option>
+            ))}
+          </select>
+          <span className="fp-select-arrow">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+            </svg>
+          </span>
+        </div>
+        {error ? <ErrLine msg={error}/> : field.helpText && <p className="fp-hint">{field.helpText}</p>}
+      </div>
+    )
+  }
+
+  // String, OIB, Email, Number
+  const isNumber = field.type === FieldType.Number
+  return (
+    <div className="fp-field">
+      <Label text={field.label} required={field.required}/>
+      <div className="fp-input-wrap">
+        <input
+          className={`fp-input ${errCls}`}
+          type={isNumber ? 'number' : 'text'}
+          inputMode={field.type === FieldType.Oib ? 'numeric' : isNumber ? 'decimal' : undefined}
+          placeholder={field.placeholder}
+          maxLength={field.validation?.maxLength}
+          value={(value as string | number) ?? ''}
+          onChange={e => set(isNumber ? parseFloat(e.target.value) : e.target.value)}
+          onBlur={() => touch()}
+        />
+      </div>
+      {error ? <ErrLine msg={error}/> : field.helpText && <p className="fp-hint">{field.helpText}</p>}
     </div>
   )
 }
@@ -293,12 +341,10 @@ function SuccessScreen({ sub, onReset }: { sub: FormSubmission; onReset: () => v
           </svg>
         </div>
       </div>
-
       <div>
         <h2 className="fp-success-title">Prijava uspješno poslana!</h2>
         <p className="fp-success-sub">Vaše dijete je prijavljeno za školski prijevoz ŽutiBus.</p>
       </div>
-
       <div className="fp-success-card">
         <p className="fp-success-card-label">Referenca prijave</p>
         <div className="fp-success-row">
@@ -314,11 +360,9 @@ function SuccessScreen({ sub, onReset }: { sub: FormSubmission; onReset: () => v
           <span className="fp-success-val">v{sub.formVersion}</span>
         </div>
       </div>
-
       <p className="fp-success-note">
         Primit ćete potvrdu e-mailom. Zadržite referentni ID za vlastitu evidenciju.
       </p>
-
       <button className="fp-reset-btn" onClick={onReset}>
         Pošalji novu prijavu
       </button>
@@ -326,76 +370,103 @@ function SuccessScreen({ sub, onReset }: { sub: FormSubmission; onReset: () => v
   )
 }
 
-/* ── Label helper ───────────────────────────────────────────────── */
-function Label({ text, required }: { text: string; required?: boolean }) {
-  return (
-    <span className="fp-label">
-      {text}
-      {required && <span className="fp-required">*</span>}
-    </span>
-  )
-}
-
 /* ── Main page ──────────────────────────────────────────────────── */
 export default function FormPage() {
-  const form = FORM
+  const { id } = useParams<{ id: string }>()
 
-  const init = () => Object.fromEntries(form.fields.map(f => [f.key, f.defaultValue ?? null]))
+  const [form,        setForm]        = useState<FormDefinition | null>(null)
+  const [formLoading, setFormLoading] = useState(true)
+  const [formError,   setFormError]   = useState<string | null>(null)
 
-  const [values,    setValues]    = useState<Record<string, FieldValue>>(init)
-  const [errors,    setErrors]    = useState<Record<string, string>>({})
-  const [touched,   setTouched]   = useState<Record<string, boolean>>({})
-  const [loading,   setLoading]   = useState(false)
-  const [submitted, setSubmitted] = useState<FormSubmission | null>(null)
+  const [values,      setValues]      = useState<Record<string, FieldValue>>({})
+  const [errors,      setErrors]      = useState<Record<string, string>>({})
+  const [touched,     setTouched]     = useState<Record<string, boolean>>({})
+  const [loading,     setLoading]     = useState(false)
+  const [submitted,   setSubmitted]   = useState<FormSubmission | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!id) return
+    setFormLoading(true)
+    setFormError(null)
+    fetch(`/form/${id}`)
+      .then(r => {
+        if (!r.ok) throw new Error(r.status === 404 ? 'Obrazac nije pronađen.' : `Greška servera: ${r.status}`)
+        return r.json()
+      })
+      .then((data: FormDefinition) => {
+        setForm(data)
+        setValues(Object.fromEntries(data.fields.map(f => [f.key, f.defaultValue ?? null])))
+        setErrors({})
+        setTouched({})
+        setSubmitted(null)
+      })
+      .catch(e => setFormError(e instanceof Error ? e.message : 'Greška pri učitavanju obrasca.'))
+      .finally(() => setFormLoading(false))
+  }, [id])
 
   function set(key: string, val: FieldValue) {
+    if (!form) return
     setValues(prev => ({ ...prev, [key]: val }))
     if (touched[key]) {
       const field = form.fields.find(f => f.key === key)!
-      const err   = validate(field, val)
-      setErrors(prev => ({ ...prev, [key]: err ?? '' }))
+      setErrors(prev => ({ ...prev, [key]: validate(field, val) ?? '' }))
     }
   }
 
-  function touch(key: string) {
+  function touch(key: string, val?: FieldValue) {
+    if (!form) return
     setTouched(prev => ({ ...prev, [key]: true }))
     const field = form.fields.find(f => f.key === key)!
-    setErrors(prev => ({ ...prev, [key]: validate(field, values[key]) ?? '' }))
+    const v = val !== undefined ? val : values[key]
+    setErrors(prev => ({ ...prev, [key]: validate(field, v) ?? '' }))
   }
 
-  const filled = form.fields.filter(f => {
-    const v = values[f.key]
-    return v !== null && v !== ''
-  }).length
+  const filled = form
+    ? form.fields.filter(f => { const v = values[f.key]; return v !== null && v !== '' && v !== undefined }).length
+    : 0
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!form) return
     const newTouched = Object.fromEntries(form.fields.map(f => [f.key, true]))
     const newErrors  = Object.fromEntries(form.fields.map(f => [f.key, validate(f, values[f.key]) ?? '']))
     setTouched(newTouched)
     setErrors(newErrors)
     if (Object.values(newErrors).some(Boolean)) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1300))
-    setLoading(false)
-    setSubmitted({
-      formId: form.id, formVersion: form.version,
-      submissionId: crypto.randomUUID(),
-      submittedAt: new Date().toISOString(),
-      values,
-    })
+    setSubmitError(null)
+    try {
+      const res = await fetch(`/form/${form.id}/submission`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formVersion: form.version, values }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || `Greška servera: ${res.status}`)
+      }
+      setSubmitted(await res.json())
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Nepoznata greška. Pokušajte ponovo.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   function reset() {
-    setValues(init()); setErrors({}); setTouched({}); setSubmitted(null)
+    if (!form) return
+    setValues(Object.fromEntries(form.fields.map(f => [f.key, f.defaultValue ?? null])))
+    setErrors({})
+    setTouched({})
+    setSubmitted(null)
   }
 
   const err = (key: string) => (touched[key] ? errors[key] || undefined : undefined)
-  const pct = form.fields.length === 0 ? 0 : Math.round((filled / form.fields.length) * 100)
+  const pct = form && form.fields.length > 0 ? Math.round((filled / form.fields.length) * 100) : 0
 
   return (
     <div className="fp-root">
-      {/* Aurora background */}
       <div className="fp-aurora">
         <div className="fp-blob fp-blob-1"/>
         <div className="fp-blob fp-blob-2"/>
@@ -406,10 +477,9 @@ export default function FormPage() {
       <div className="fp-grid"/>
 
       <div className="fp-page">
-        {/* Header — co-branded Grad Split × ŽutiBus */}
+        {/* Header */}
         <div className="fp-header">
           <div className="fp-cobrand">
-            {/* Grad Split side */}
             <div className="fp-split-logo-wrap">
               <img
                 src="https://split.hr/Portals/0/logo-white.svg"
@@ -419,11 +489,7 @@ export default function FormPage() {
               />
               <span className="fp-split-name">Grad Split</span>
             </div>
-
-            {/* Divider */}
             <div className="fp-cobrand-divider"/>
-
-            {/* ŽutiBus side */}
             <div className="fp-logo-row">
               <BusIcon size={52}/>
               <div className="fp-logo-text">
@@ -432,8 +498,6 @@ export default function FormPage() {
               </div>
             </div>
           </div>
-
-          {/* Civic tagline */}
           <div className="fp-tagline">
             <span>Digitalne usluge</span>
             <span className="fp-tagline-dot"/>
@@ -447,224 +511,97 @@ export default function FormPage() {
         <div className="fp-card">
           <div className="fp-card-stripe"/>
 
-          {/* Card head */}
-          <div className="fp-card-head">
-            <div>
-              <h1 className="fp-card-title">{form.title}</h1>
-              <p className="fp-card-desc">{form.description}</p>
+          {formLoading && (
+            <div className="fp-card-state">
+              <div className="fp-spinner fp-spinner--lg"/>
+              <span>Učitavanje obrasca…</span>
             </div>
-            <div className="fp-version-pill">
-              <span className="fp-version-dot"/>
-              v{form.version}
-            </div>
-          </div>
+          )}
 
-          {submitted ? (
+          {formError && (
+            <div className="fp-card-state fp-card-state--err">
+              <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+              </svg>
+              <p>{formError}</p>
+            </div>
+          )}
+
+          {form && !formLoading && (submitted ? (
             <SuccessScreen sub={submitted} onReset={reset}/>
           ) : (
-            <form onSubmit={submit} noValidate>
-              {/* Progress */}
-              <div className="fp-progress">
-                <div className="fp-progress-track">
-                  <div className="fp-progress-fill" style={{ width: `${pct}%` }}/>
+            <>
+              <div className="fp-card-head">
+                <div>
+                  <h1 className="fp-card-title">{form.title}</h1>
+                  {form.description && <p className="fp-card-desc">{form.description}</p>}
                 </div>
-                <span className="fp-progress-count">{filled}/{form.fields.length}</span>
+                <div className="fp-version-pill">
+                  <span className="fp-version-dot"/>
+                  v{form.version}
+                </div>
               </div>
 
-              {/* Fields */}
-              <div className="fp-body">
-
-                {/* ── Section: Parent ── */}
-                <div className="fp-section">
-                  <span className="fp-section-line"/>
-                  <span className="fp-section-text">Podaci o roditelju</span>
-                  <span className="fp-section-line"/>
+              <form onSubmit={submit} noValidate>
+                <div className="fp-progress">
+                  <div className="fp-progress-track">
+                    <div className="fp-progress-fill" style={{ width: `${pct}%` }}/>
+                  </div>
+                  <span className="fp-progress-count">{filled}/{form.fields.length}</span>
                 </div>
 
-                {/* OIB */}
-                <div className="fp-field">
-                  <Label text="OIB roditelja" required/>
-                  <div className="fp-input-wrap">
-                    <span className="fp-input-ico">
-                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2"/>
-                      </svg>
-                    </span>
-                    <input
-                      id="parentOib"
-                      className={`fp-input fp-input--ico ${err('parentOib') ? 'fp-input--err' : ''}`}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={11}
-                      placeholder="12345678901"
-                      value={(values.parentOib as string) ?? ''}
-                      onChange={e => set('parentOib', e.target.value)}
-                      onBlur={() => touch('parentOib')}
+                <div className="fp-body">
+                  {form.fields.map(field => (
+                    <FieldRenderer
+                      key={field.key}
+                      field={field}
+                      value={values[field.key] ?? null}
+                      error={err(field.key)}
+                      set={val => set(field.key, val)}
+                      touch={val => touch(field.key, val)}
                     />
-                  </div>
-                  {err('parentOib')
-                    ? <ErrLine msg={err('parentOib')}/>
-                    : <p className="fp-hint">Hrvatski OIB — točno 11 znamenki.</p>
-                  }
+                  ))}
                 </div>
 
-                {/* Name | Last name */}
-                <div className="fp-row">
-                  {(['name', 'lastName'] as const).map(key => {
-                    const field = form.fields.find(f => f.key === key)!
-                    return (
-                      <div key={key} className="fp-field">
-                        <Label text={field.label} required={field.required}/>
-                        <div className="fp-input-wrap">
-                          <input
-                            className={`fp-input ${err(key) ? 'fp-input--err' : ''}`}
-                            type="text"
-                            placeholder={field.placeholder}
-                            value={(values[key] as string) ?? ''}
-                            onChange={e => set(key, e.target.value)}
-                            onBlur={() => touch(key)}
-                          />
-                        </div>
-                        <ErrLine msg={err(key)}/>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* ── Section: Child ── */}
-                <div className="fp-section">
-                  <span className="fp-section-line"/>
-                  <span className="fp-section-text">Podaci o djetetu</span>
-                  <span className="fp-section-line"/>
-                </div>
-
-                {/* Child name */}
-                <div className="fp-field">
-                  <Label text="Ime djeteta" required/>
-                  <div className="fp-input-wrap">
-                    <span className="fp-input-ico">
-                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                <div className="fp-foot">
+                  {Object.values(errors).some(Boolean) && Object.values(touched).some(Boolean) && (
+                    <div className="fp-err-banner">
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0 }}>
+                        <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 4a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 018 5zm0 6.5a.875.875 0 110-1.75.875.875 0 010 1.75z"/>
                       </svg>
-                    </span>
-                    <input
-                      className={`fp-input fp-input--ico ${err('childName') ? 'fp-input--err' : ''}`}
-                      type="text"
-                      placeholder="Marko"
-                      value={(values.childName as string) ?? ''}
-                      onChange={e => set('childName', e.target.value)}
-                      onBlur={() => touch('childName')}
-                    />
-                  </div>
-                  <ErrLine msg={err('childName')}/>
-                </div>
-
-                {/* Child disabled */}
-                <CheckboxField
-                  label="Dijete s posebnim potrebama"
-                  value={(values.childDisabled as boolean) ?? false}
-                  onChange={v => { set('childDisabled', v); touch('childDisabled') }}
-                  error={err('childDisabled')}
-                  hint="Označite ako dijete ima posebne potrebe ili teškoće u razvoju."
-                />
-
-                {/* ── Section: Transport ── */}
-                <div className="fp-section">
-                  <span className="fp-section-line"/>
-                  <span className="fp-section-text">Škola i prijevoz</span>
-                  <span className="fp-section-line"/>
-                </div>
-
-                {/* School select */}
-                <div className="fp-field">
-                  <Label text="Škola" required/>
-                  <div className="fp-input-wrap">
-                    <span className="fp-input-ico">
-                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z"/>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                      Ispravite greške iznad prije slanja.
+                    </div>
+                  )}
+                  {submitError && (
+                    <div className="fp-err-banner">
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0 }}>
+                        <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 4a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 018 5zm0 6.5a.875.875 0 110-1.75.875.875 0 010 1.75z"/>
                       </svg>
-                    </span>
-                    <select
-                      className={`fp-input fp-input--ico fp-select ${err('school') ? 'fp-input--err' : ''}`}
-                      value={(values.school as string) ?? ''}
-                      onChange={e => { set('school', e.target.value); touch('school') }}
-                    >
-                      <option value="" disabled>Odaberite školu…</option>
-                      {form.fields.find(f => f.key === 'school')?.options?.map(o => (
-                        <option key={o.id} value={o.id}>{o.displayName}</option>
-                      ))}
-                    </select>
-                    <span className="fp-select-arrow">
-                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-                      </svg>
-                    </span>
-                  </div>
-                  {err('school')
-                    ? <ErrLine msg={err('school')}/>
-                    : <p className="fp-hint">Odaberite školu djeteta.</p>
-                  }
+                      {submitError}
+                    </div>
+                  )}
+
+                  <button type="submit" className="fp-submit" disabled={loading}>
+                    {loading
+                      ? <><div className="fp-spinner"/> Slanje…</>
+                      : <>
+                          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                          </svg>
+                          Pošalji prijavu
+                        </>
+                    }
+                  </button>
+
+                  <p className="fp-terms">
+                    Slanjem potvrđujete da ste pročitali i prihvatili{' '}
+                    <a href="#">Uvjete korištenja</a> i <a href="#">Politiku privatnosti</a> ŽutiBus usluge.
+                  </p>
                 </div>
-
-                {/* Home address */}
-                <div className="fp-field">
-                  <Label text="Kućna adresa" required/>
-                  <AddressField
-                    value={values.homeAddress as AddressPoint | null}
-                    onChange={val => { set('homeAddress', val); touch('homeAddress') }}
-                    error={err('homeAddress')}
-                  />
-                </div>
-
-                {/* ── Section: GDPR ── */}
-                <div className="fp-section">
-                  <span className="fp-section-line"/>
-                  <span className="fp-section-text">Suglasnost</span>
-                  <span className="fp-section-line"/>
-                </div>
-
-                {/* GDPR consent */}
-                <CheckboxField
-                  label="Prihvaćam obradu osobnih podataka"
-                  value={(values.gdprConsent as boolean) ?? false}
-                  onChange={v => { set('gdprConsent', v); touch('gdprConsent') }}
-                  error={err('gdprConsent')}
-                  hint="Slažem se s obradom osobnih podataka u svrhu pružanja usluge školskog prijevoza ŽutiBus, sukladno Uredbi (EU) 2016/679 (GDPR)."
-                  required
-                />
-              </div>
-
-              {/* Footer */}
-              <div className="fp-foot">
-                {Object.values(errors).some(Boolean) && Object.values(touched).some(Boolean) && (
-                  <div className="fp-err-banner">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0 }}>
-                      <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 4a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 018 5zm0 6.5a.875.875 0 110-1.75.875.875 0 010 1.75z"/>
-                    </svg>
-                    Ispravite greške iznad prije slanja.
-                  </div>
-                )}
-
-                <button type="submit" className="fp-submit" disabled={loading}>
-                  {loading
-                    ? <><div className="fp-spinner"/> Slanje…</>
-                    : <>
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        Pošalji prijavu
-                      </>
-                  }
-                </button>
-
-                <p className="fp-terms">
-                  Slanjem potvrđujete da ste pročitali i prihvatili{' '}
-                  <a href="#">Uvjete korištenja</a> i <a href="#">Politiku privatnosti</a> ŽutiBus usluge.
-                </p>
-              </div>
-            </form>
-          )}
+              </form>
+            </>
+          ))}
         </div>
 
         <div className="fp-page-foot">

@@ -282,6 +282,38 @@ html, body { margin: 0; padding: 0; background: #04101f; }
 }
 
 /* ─────────────────────────────────────────────────────────
+   CARD LOADING / ERROR STATE
+───────────────────────────────────────────────────────── */
+.fp-card-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.875rem;
+}
+
+.fp-card-state--err {
+  color: #fca5a5;
+}
+
+.fp-card-state--err p {
+  margin: 0;
+  text-align: center;
+}
+
+.fp-spinner--lg {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: #2B9EFF;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+/* ─────────────────────────────────────────────────────────
    CARD HEADER
 ───────────────────────────────────────────────────────── */
 .fp-card-head {
