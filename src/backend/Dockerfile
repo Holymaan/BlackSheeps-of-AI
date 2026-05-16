@@ -14,6 +14,8 @@ COPY BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure/BlackSheepsOfAI.ParkAnd
      BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure/
 COPY BlackSheepsOfAI.ParkAndRideYellowBus.API/BlackSheepsOfAI.ParkAndRideYellowBus.API.csproj \
      BlackSheepsOfAI.ParkAndRideYellowBus.API/
+COPY BlackSheepsOfAI.ParkAndRideYellowBus.SeedSubmissions/BlackSheepsOfAI.ParkAndRideYellowBus.SeedSubmissions.csproj \
+     BlackSheepsOfAI.ParkAndRideYellowBus.SeedSubmissions/
 
 RUN dotnet restore BlackSheepsOfAI.ParkAndRideYellowBus.slnx
 
