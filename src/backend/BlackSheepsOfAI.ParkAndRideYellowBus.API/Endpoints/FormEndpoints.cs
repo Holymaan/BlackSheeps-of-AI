@@ -12,6 +12,28 @@ public static class FormEndpoints
     /// <summary>Maps the <c>/form</c> routes onto the application.</summary>
     public static IEndpointRouteBuilder MapFormEndpoints(this IEndpointRouteBuilder app)
     {
+        // GET /form — lists all form definitions with submission counts.
+        app.MapGet("/form",
+            async (ApplicationDbContext db, CancellationToken ct) =>
+            {
+                var forms = await db.FormDefinitions
+                    .AsNoTracking()
+                    .Select(f => new
+                    {
+                        f.Id,
+                        f.Title,
+                        f.Description,
+                        f.Version,
+                        f.Fields,
+                        SubmissionCount = db.FormSubmissions.Count(s => s.FormId == f.Id),
+                    })
+                    .ToListAsync(ct);
+
+                return Results.Ok(forms);
+            })
+           .WithName("ListForms")
+           .WithTags("Forms");
+
         // POST /form — creates a new form definition.
         app.MapPost("/form",
             async (CreateFormRequest request, ApplicationDbContext db, CancellationToken ct) =>
@@ -68,6 +90,25 @@ public static class FormEndpoints
                     $"/form/{id}/submission/{submission.SubmissionId}", submission);
             })
            .WithName("SubmitForm")
+           .WithTags("Forms");
+
+        // GET /form/{id}/submissions — lists all submissions for a form.
+        app.MapGet("/form/{id:guid}/submissions",
+            async (Guid id, ApplicationDbContext db, CancellationToken ct) =>
+            {
+                var formExists = await db.FormDefinitions.AnyAsync(f => f.Id == id, ct);
+                if (!formExists)
+                    return Results.NotFound();
+
+                var submissions = await db.FormSubmissions
+                    .AsNoTracking()
+                    .Where(s => s.FormId == id)
+                    .OrderByDescending(s => s.SubmittedAt)
+                    .ToListAsync(ct);
+
+                return Results.Ok(submissions);
+            })
+           .WithName("ListSubmissions")
            .WithTags("Forms");
 
         // GET /form/{id}/submission/{submissionId} — reads back a stored submission.
