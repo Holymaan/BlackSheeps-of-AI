@@ -1,9 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run *)",
-      "Bash(Get-Content \"C:\\\\Users\\\\ZLATKO~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-ZlatkoZajec-source-repos-Holymaan-BlackSheeps-of-AI\\\\c9880ffa-f7cc-4f26-b34f-81d32c29b360\\\\tasks\\\\b58a1r05j.output\" -Raw)",
-      "WebFetch(domain:split.hr)"
+      "Bash(export PATH=\"$PATH:$HOME/.dotnet/tools\")",
+      "Bash(dotnet ef *)",
+      "Bash(npm install *)",
+      "Bash(dotnet build *)"
     ]
   }
 }
