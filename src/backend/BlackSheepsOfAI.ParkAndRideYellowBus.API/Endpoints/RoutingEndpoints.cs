@@ -127,22 +127,26 @@ public static class RoutingEndpoints
 
                 // 5c. Re-route with break_through at every intermediate stop so Valhalla
                 //     cannot insert a U-turn at any pickup point.
-                var routeLocations = visitOrder
+                //     Valhalla caps /route at 20 locations, so we chunk into batches of 18
+                //     stops + 1 bridge/destination, stitching the legs afterwards.
+                var breakThroughStops = visitOrder
                     .Select(i => new ValhallaLocation
                     {
                         Lat  = waypoints[i].Lat,
                         Lon  = waypoints[i].Lon,
-                        Type = "break_through",   // stop here, but keep going in the same direction
+                        Type = "break_through",
                     })
-                    .Append(new ValhallaLocation { Lat = schoolLat, Lon = schoolLon, Type = "break" })
                     .ToList();
 
-                ValhallaOptimizedRouteResponse route;
+                var schoolLocation = new ValhallaLocation
+                    { Lat = schoolLat, Lon = schoolLon, Type = "break" };
+
+                List<string> shapes;
+                double timeSec, lengthKm;
                 try
                 {
-                    route = await valhalla.GetRouteAsync(
-                        new ValhallaRouteRequest { Locations = routeLocations, Costing = "auto" },
-                        ct);
+                    (shapes, timeSec, lengthKm) =
+                        await GetChunkedRouteAsync(valhalla, breakThroughStops, schoolLocation, ct);
                 }
                 catch (HttpRequestException ex)
                 {
@@ -152,8 +156,8 @@ public static class RoutingEndpoints
                 }
 
                 // 6. Build enriched response
-                var legs = route.Trip.Legs
-                    .Select(leg => (IReadOnlyList<double[]>)DecodePolyline(leg.Shape))
+                var legs = shapes
+                    .Select(s => (IReadOnlyList<double[]>)DecodePolyline(s))
                     .ToList();
 
                 var response = new SchoolRouteResponse(
@@ -165,8 +169,8 @@ public static class RoutingEndpoints
                     BusStops: orderedBusStops,
                     Route: new RouteInfo(
                         Legs:      legs,
-                        TimeSec:   route.Trip.Summary.Time,
-                        LengthKm:  route.Trip.Summary.Length));
+                        TimeSec:   timeSec,
+                        LengthKm:  lengthKm));
 
                 return Results.Ok(response);
             })
@@ -177,6 +181,60 @@ public static class RoutingEndpoints
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Routes through <paramref name="stops"/> (all typed <c>break_through</c>) ending at
+    /// <paramref name="destination"/> (<c>break</c>), splitting into chunks of 18 stops to
+    /// stay under Valhalla's 20-location-per-request limit.  The leg shapes and summary
+    /// totals from every chunk are merged into a single result.
+    /// </summary>
+    private static async Task<(List<string> Shapes, double TimeSec, double LengthKm)>
+        GetChunkedRouteAsync(
+            IValhallaClient valhalla,
+            List<ValhallaLocation> stops,
+            ValhallaLocation destination,
+            CancellationToken ct)
+    {
+        const int chunkSize = 18; // 18 intermediate stops + 1 end = 19 ≤ 20 limit
+
+        var allShapes  = new List<string>();
+        double totalTime   = 0;
+        double totalLength = 0;
+
+        for (int i = 0; i < stops.Count; i += chunkSize)
+        {
+            var chunkStops = stops.Skip(i).Take(chunkSize).ToList();
+            bool isLast    = i + chunkSize >= stops.Count;
+
+            // Non-final chunks end at the first stop of the next chunk (bridge point),
+            // typed as "break" so Valhalla closes the leg there.
+            // The next iteration re-uses that same coordinate as its starting stop.
+            ValhallaLocation endLocation;
+            if (isLast)
+            {
+                endLocation = destination;
+            }
+            else
+            {
+                var bridge = stops[i + chunkSize];
+                endLocation = new ValhallaLocation { Lat = bridge.Lat, Lon = bridge.Lon, Type = "break" };
+            }
+
+            var chunkResponse = await valhalla.GetRouteAsync(
+                new ValhallaRouteRequest
+                {
+                    Locations = [.. chunkStops, endLocation],
+                    Costing   = "auto",
+                },
+                ct);
+
+            allShapes.AddRange(chunkResponse.Trip.Legs.Select(l => l.Shape));
+            totalTime   += chunkResponse.Trip.Summary.Time;
+            totalLength += chunkResponse.Trip.Summary.Length;
+        }
+
+        return (allShapes, totalTime, totalLength);
+    }
 
     /// <summary>
     /// Decodes a Valhalla encoded-polyline string (precision 6) into an ordered
