@@ -1,4 +1,6 @@
 services:
+
+  # ── Database ────────────────────────────────────────────────────────────────
   postgres:
     image: postgis/postgis:16-3.4
     container_name: postgres
@@ -11,6 +13,14 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Seed data is applied by the .NET backend after EF migrations run.
+
+  # ── PgAdmin (optional, development convenience) ──────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
@@ -26,6 +36,7 @@ services:
     depends_on:
       - postgres
 
+  # ── Valhalla routing engine ──────────────────────────────────────────────────
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
     platform: linux/amd64
@@ -42,6 +53,46 @@ services:
       - force_rebuild=False
     volumes:
       - valhalla_data:/custom_files
+
+  # ── .NET backend ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ../src/backend
+      dockerfile: Dockerfile
+    image: zutibus-api
+    container_name: api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5058
+      # Override connection string to hit the postgres service, not localhost.
+      ConnectionStrings__DefaultConnection: >-
+        Host=postgres;Port=5432;Database=zutibus;Username=postgres;Password=postgres
+      # Point Valhalla at the valhalla service, not localhost.
+      Valhalla__BaseUrl: http://valhalla:8002
+    ports:
+      - "5058:5058"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── React frontend (nginx) ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../src/frontend
+      dockerfile: Dockerfile
+      args:
+        # The Mapbox token is baked into the JS bundle at build time.
+        # Set VITE_MAPBOX_TOKEN in tools/.env (see .env.example) or export it
+        # in your shell before running docker compose up --build.
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
+    image: zutibus-frontend
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
