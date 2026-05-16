@@ -3,4 +3,8 @@
   <!-- Shared properties (TargetFramework, Nullable, ImplicitUsings) come from
        ../Directory.Build.props. Domain layer — no project references. -->
 
+  <ItemGroup>
+    <PackageReference Include="NetTopologySuite" Version="2.5.0" />
+  </ItemGroup>
+
 </Project>

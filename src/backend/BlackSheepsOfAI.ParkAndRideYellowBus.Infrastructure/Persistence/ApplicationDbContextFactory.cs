@@ -32,7 +32,7 @@ public sealed class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Ap
             ?? DefaultConnectionString;
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(connectionString)
+            .UseNpgsql(connectionString, o => o.UseNetTopologySuite())
             .UseSnakeCaseNamingConvention()
             .Options;
 
