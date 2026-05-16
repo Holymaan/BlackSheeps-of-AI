@@ -11,14 +11,9 @@ namespace BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<Guid>(
-                name: "form_id",
-                table: "form_submissions",
-                type: "uuid",
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "character varying(200)",
-                oldMaxLength: 200);
+            // Postgres cannot auto-cast varchar → uuid; explicit USING is required.
+            migrationBuilder.Sql(
+                "ALTER TABLE form_submissions ALTER COLUMN form_id TYPE uuid USING form_id::uuid");
 
             migrationBuilder.CreateTable(
                 name: "form_definitions",
