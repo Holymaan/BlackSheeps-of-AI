@@ -3,7 +3,15 @@
     "allow": [
       "Bash(npm list *)",
       "Bash(npx tsc *)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ZlatkoZajec\\\\source\\\\repos\\\\Holymaan\\\\BlackSheeps-of-AI\\\\src\\\\backend\\\\BlackSheepsOfAI.ParkAndRideYellowBus.API\" -Recurse -Directory | Select-Object -First 30 | ForEach-Object { $_.FullName } | Sort-Object)"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ZlatkoZajec\\\\source\\\\repos\\\\Holymaan\\\\BlackSheeps-of-AI\\\\src\\\\backend\\\\BlackSheepsOfAI.ParkAndRideYellowBus.API\" -Recurse -Directory | Select-Object -First 30 | ForEach-Object { $_.FullName } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ZlatkoZajec\\\\source\\\\repos\\\\Holymaan\\\\BlackSheeps-of-AI\\\\src\\\\frontend\" -Exclude node_modules | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ZlatkoZajec\\\\source\\\\repos\\\\Holymaan\\\\BlackSheeps-of-AI\\\\src\\\\frontend\\\\admin\" | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ZlatkoZajec\\\\source\\\\repos\\\\Holymaan\\\\BlackSheeps-of-AI\\\\src\" -Exclude frontend | ForEach-Object { $_.FullName })",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\ZlatkoZajec\\\\source\\\\repos\\\\Holymaan\\\\BlackSheeps-of-AI\\\\src\\\\frontend\" -Recurse -Directory)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Format-Table FullName)",
+      "Bash(npm install *)",
+      "Bash(npx vite *)"
     ]
   }
 }

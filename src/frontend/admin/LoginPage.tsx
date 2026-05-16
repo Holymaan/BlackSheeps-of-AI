@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { login as apiLogin } from '../api/client'
+import { useTranslation } from 'react-i18next'
+import { LanguageSwitcher } from '../LanguageSwitcher'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const { t } = useTranslation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -20,7 +23,7 @@ export default function LoginPage() {
       login(res.token, res.username, res.role)
       navigate('/admin')
     } catch {
-      setError('Invalid username or password.')
+      setError(t('login.error'))
     } finally {
       setLoading(false)
     }
@@ -30,13 +33,13 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="font-display text-2xl font-bold text-bus-navy">ŽutiBus Admin</h1>
-          <p className="text-sm text-gray-500 mt-1">Grad Split · e-Uprava</p>
+          <h1 className="font-display text-2xl font-bold text-bus-navy">{t('login.title')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('login.subtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('login.username')}</label>
             <input
               type="text"
               value={username}
@@ -46,7 +49,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('login.password')}</label>
             <input
               type="password"
               value={password}
@@ -62,9 +65,13 @@ export default function LoginPage() {
             disabled={loading || !username || !password}
             className="w-full px-4 py-2.5 bg-bus-navy text-white font-semibold rounded-lg hover:bg-bus-navy-dark disabled:opacity-50 transition text-sm"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? t('login.signingIn') : t('login.signIn')}
           </button>
         </form>
+
+        <div className="flex justify-center mt-4">
+          <LanguageSwitcher className="text-gray-400" />
+        </div>
       </div>
     </div>
   )

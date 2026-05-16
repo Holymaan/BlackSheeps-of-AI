@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getForm, listSubmissions, type FormDefinition, type FormSubmission } from '../api/client'
+import { useTranslation } from 'react-i18next'
 
 export default function ProjectSubmissionsPage() {
   const { id } = useParams<{ id: string }>()
@@ -8,6 +9,7 @@ export default function ProjectSubmissionsPage() {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!id) return
@@ -16,19 +18,19 @@ export default function ProjectSubmissionsPage() {
         setForm(f)
         setSubmissions(s)
       })
-      .catch(() => setError('Failed to load project data.'))
+      .catch(() => setError(t('projectSubmissions.loadError')))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, t])
 
-  if (loading) return <div className="p-8 text-gray-500">Loading...</div>
+  if (loading) return <div className="p-8 text-gray-500">{t('projectSubmissions.loading')}</div>
   if (error) return <div className="p-8 text-red-500 text-sm">{error}</div>
-  if (!form) return <div className="p-8 text-gray-500">Project not found.</div>
+  if (!form) return <div className="p-8 text-gray-500">{t('projectSubmissions.notFound')}</div>
 
   const previewFields = form.fields.slice(0, 4)
 
   function formatValue(val: unknown): string {
     if (val == null) return '—'
-    if (typeof val === 'boolean') return val ? 'Yes' : 'No'
+    if (typeof val === 'boolean') return val ? t('projectSubmissions.yes') : t('projectSubmissions.no')
     if (typeof val === 'object' && 'address' in (val as Record<string, unknown>)) {
       return (val as { address: string }).address
     }
@@ -39,47 +41,47 @@ export default function ProjectSubmissionsPage() {
     <div className="p-8">
       <div className="mb-6">
         <Link to="/admin" className="text-sm text-gray-500 hover:text-bus-navy mb-2 inline-block">
-          &larr; All Projects
+          {t('projectSubmissions.backToProjects')}
         </Link>
         <h1 className="text-2xl font-display font-bold text-gray-900">{form.title}</h1>
         {form.description && (
           <p className="text-sm text-gray-500 mt-1">{form.description}</p>
         )}
         <div className="flex gap-4 mt-2 text-xs text-gray-400">
-          <span>Version {form.version}</span>
-          <span>{form.fields.length} fields</span>
-          <span>{submissions.length} submissions</span>
+          <span>{t('projectSubmissions.version', { version: form.version })}</span>
+          <span>{t('projectSubmissions.fields', { count: form.fields.length })}</span>
+          <span>{t('projectSubmissions.submissions', { count: submissions.length })}</span>
         </div>
       </div>
 
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Submissions</h2>
+        <h2 className="text-lg font-semibold text-gray-900">{t('projectSubmissions.submissionsTitle')}</h2>
         <Link
           to={`/form/${id}`}
           target="_blank"
           className="text-sm text-gray-500 hover:text-bus-navy"
         >
-          Open form &nearr;
+          {t('projectSubmissions.openForm')}
         </Link>
       </div>
 
       {submissions.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <p className="text-lg mb-2">No submissions yet</p>
-          <p className="text-sm">Share the form link with citizens to start collecting responses.</p>
+          <p className="text-lg mb-2">{t('projectSubmissions.emptyTitle')}</p>
+          <p className="text-sm">{t('projectSubmissions.emptySubtitle')}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 font-medium text-gray-500">Submitted</th>
+                <th className="px-6 py-3 font-medium text-gray-500">{t('projectSubmissions.colSubmitted')}</th>
                 {previewFields.map((f) => (
                   <th key={f.key} className="px-6 py-3 font-medium text-gray-500">
                     {f.label}
                   </th>
                 ))}
-                <th className="px-6 py-3 font-medium text-gray-500 text-right">Actions</th>
+                <th className="px-6 py-3 font-medium text-gray-500 text-right">{t('projectSubmissions.colActions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -104,7 +106,7 @@ export default function ProjectSubmissionsPage() {
                       to={`/admin/projects/${id}/submissions/${s.submissionId}`}
                       className="text-xs text-bus-navy hover:underline font-medium"
                     >
-                      View
+                      {t('projectSubmissions.view')}
                     </Link>
                   </td>
                 </tr>

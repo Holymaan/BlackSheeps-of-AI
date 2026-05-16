@@ -11,6 +11,10 @@ import {
   AddressPoint,
   FormSubmission,
 } from './examples/form-models'
+import { listSchools } from './api/client'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string
 
@@ -21,25 +25,27 @@ interface MapboxFeature {
   text: string
 }
 
+type TFunc = TFunction
+
 /* ── Validation ─────────────────────────────────────────────────── */
-function validate(field: FormFieldDef, value: FieldValue): string | null {
+function validate(field: FormFieldDef, value: FieldValue, t: TFunc): string | null {
   if (field.type === FieldType.AddressPoint) {
     const ap = value as AddressPoint | null
-    if (field.required && (!ap || !ap.address)) return `Polje "${field.label}" je obavezno.`
+    if (field.required && (!ap || !ap.address)) return t('form.required', { label: field.label })
     return null
   }
   if (field.type === FieldType.Boolean) {
-    if (field.required && !value) return 'Prihvaćanje je obavezno za nastavak.'
+    if (field.required && !value) return t('form.acceptanceRequired')
     return null
   }
   const empty = value === null || value === '' || value === undefined
-  if (field.required && empty) return `Polje "${field.label}" je obavezno.`
+  if (field.required && empty) return t('form.required', { label: field.label })
   if (empty) return null
   const v = field.validation
   if (!v || typeof value !== 'string') return null
-  if (v.pattern && !new RegExp(v.pattern).test(value)) return v.errorMessage ?? 'Neispravan format.'
-  if (v.minLength !== undefined && value.length < v.minLength) return v.errorMessage ?? `Minimalno ${v.minLength} znakova.`
-  if (v.maxLength !== undefined && value.length > v.maxLength) return v.errorMessage ?? `Maksimalno ${v.maxLength} znakova.`
+  if (v.pattern && !new RegExp(v.pattern).test(value)) return v.errorMessage ?? t('form.invalidFormat')
+  if (v.minLength !== undefined && value.length < v.minLength) return v.errorMessage ?? t('form.minLength', { n: v.minLength })
+  if (v.maxLength !== undefined && value.length > v.maxLength) return v.errorMessage ?? t('form.maxLength', { n: v.maxLength })
   return null
 }
 
@@ -58,11 +64,12 @@ function ErrLine({ msg }: { msg?: string }) {
 
 /* ── Address field ──────────────────────────────────────────────── */
 function AddressField({
-  value, onChange, error,
+  value, onChange, error, placeholder,
 }: {
   value: AddressPoint | null
   onChange: (v: AddressPoint | null) => void
   error?: string
+  placeholder: string
 }) {
   const [addr, setAddr] = useState(value?.address ?? '')
   const [suggestions, setSuggestions] = useState<MapboxFeature[]>([])
@@ -151,7 +158,7 @@ function AddressField({
           <input
             className={`fp-input fp-input--ico ${errCls}`}
             type="text"
-            placeholder="Marmontova 1, 21000 Split"
+            placeholder={placeholder}
             value={addr}
             autoComplete="off"
             onChange={e => handleInput(e.target.value)}
@@ -220,12 +227,14 @@ function Label({ text, required }: { text: string; required?: boolean }) {
 }
 
 /* ── Generic field renderer ─────────────────────────────────────── */
-function FieldRenderer({ field, value, error, set, touch }: {
+function FieldRenderer({ field, value, error, set, touch, selectPlaceholder, addressPlaceholder }: {
   field: FormFieldDef
   value: FieldValue
   error: string | undefined
   set: (val: FieldValue) => void
   touch: (val?: FieldValue) => void
+  selectPlaceholder: string
+  addressPlaceholder: string
 }) {
   const errCls = error ? 'fp-input--err' : ''
 
@@ -250,6 +259,7 @@ function FieldRenderer({ field, value, error, set, touch }: {
           value={value as AddressPoint | null}
           onChange={v => { set(v); touch(v) }}
           error={error}
+          placeholder={addressPlaceholder}
         />
       </div>
     )
@@ -265,7 +275,7 @@ function FieldRenderer({ field, value, error, set, touch }: {
             value={(value as string) ?? ''}
             onChange={e => { set(e.target.value); touch(e.target.value) }}
           >
-            <option value="" disabled>Odaberite…</option>
+            <option value="" disabled>{selectPlaceholder}</option>
             {field.options?.map(o => (
               <option key={o.id} value={o.id}>{o.displayName}</option>
             ))}
@@ -326,7 +336,7 @@ function BusIcon({ size = 44 }: { size?: number }) {
 }
 
 /* ── Success screen ─────────────────────────────────────────────── */
-function SuccessScreen({ sub, onReset }: { sub: FormSubmission; onReset: () => void }) {
+function SuccessScreen({ sub, onReset, t }: { sub: FormSubmission; onReset: () => void; t: TFunc }) {
   return (
     <div className="fp-success">
       <div className="fp-success-ring-wrap">
@@ -342,29 +352,27 @@ function SuccessScreen({ sub, onReset }: { sub: FormSubmission; onReset: () => v
         </div>
       </div>
       <div>
-        <h2 className="fp-success-title">Prijava uspješno poslana!</h2>
-        <p className="fp-success-sub">Vaše dijete je prijavljeno za školski prijevoz ŽutiBus.</p>
+        <h2 className="fp-success-title">{t('form.successTitle')}</h2>
+        <p className="fp-success-sub">{t('form.successSub')}</p>
       </div>
       <div className="fp-success-card">
-        <p className="fp-success-card-label">Referenca prijave</p>
+        <p className="fp-success-card-label">{t('form.submissionRef')}</p>
         <div className="fp-success-row">
-          <span className="fp-success-key">ID</span>
+          <span className="fp-success-key">{t('form.submissionId')}</span>
           <span className="fp-success-val fp-success-val--mono">{sub.submissionId.slice(0, 8)}…</span>
         </div>
         <div className="fp-success-row">
-          <span className="fp-success-key">Poslano</span>
+          <span className="fp-success-key">{t('form.sent')}</span>
           <span className="fp-success-val">{new Date(sub.submittedAt).toLocaleString('hr-HR')}</span>
         </div>
         <div className="fp-success-row">
-          <span className="fp-success-key">Verzija obrasca</span>
+          <span className="fp-success-key">{t('form.formVersionLabel')}</span>
           <span className="fp-success-val">v{sub.formVersion}</span>
         </div>
       </div>
-      <p className="fp-success-note">
-        Primit ćete potvrdu e-mailom. Zadržite referentni ID za vlastitu evidenciju.
-      </p>
+      <p className="fp-success-note">{t('form.emailNote')}</p>
       <button className="fp-reset-btn" onClick={onReset}>
-        Pošalji novu prijavu
+        {t('form.submitAnother')}
       </button>
     </div>
   )
@@ -373,6 +381,7 @@ function SuccessScreen({ sub, onReset }: { sub: FormSubmission; onReset: () => v
 /* ── Main page ──────────────────────────────────────────────────── */
 export default function FormPage() {
   const { id } = useParams<{ id: string }>()
+  const { t } = useTranslation()
 
   const [form,        setForm]        = useState<FormDefinition | null>(null)
   const [formLoading, setFormLoading] = useState(true)
@@ -389,28 +398,40 @@ export default function FormPage() {
     if (!id) return
     setFormLoading(true)
     setFormError(null)
-    fetch(`/form/${id}`)
-      .then(r => {
-        if (!r.ok) throw new Error(r.status === 404 ? 'Obrazac nije pronađen.' : `Greška servera: ${r.status}`)
-        return r.json()
-      })
-      .then((data: FormDefinition) => {
+    Promise.all([
+      fetch(`/form/${id}`).then(r => {
+        if (!r.ok) throw new Error(r.status === 404 ? t('form.notFound') : t('form.serverError', { status: r.status }))
+        return r.json() as Promise<FormDefinition>
+      }),
+      listSchools().catch(() => []),
+    ])
+      .then(([data, schools]) => {
+        if (schools.length > 0) {
+          data = {
+            ...data,
+            fields: data.fields.map(f =>
+              f.key === 'school' && f.type === FieldType.Select
+                ? { ...f, options: schools.map(s => ({ id: String(s.id), displayName: s.name })) }
+                : f
+            ),
+          }
+        }
         setForm(data)
         setValues(Object.fromEntries(data.fields.map(f => [f.key, f.defaultValue ?? null])))
         setErrors({})
         setTouched({})
         setSubmitted(null)
       })
-      .catch(e => setFormError(e instanceof Error ? e.message : 'Greška pri učitavanju obrasca.'))
+      .catch(e => setFormError(e instanceof Error ? e.message : t('form.loadError')))
       .finally(() => setFormLoading(false))
-  }, [id])
+  }, [id, t])
 
   function set(key: string, val: FieldValue) {
     if (!form) return
     setValues(prev => ({ ...prev, [key]: val }))
     if (touched[key]) {
       const field = form.fields.find(f => f.key === key)!
-      setErrors(prev => ({ ...prev, [key]: validate(field, val) ?? '' }))
+      setErrors(prev => ({ ...prev, [key]: validate(field, val, t) ?? '' }))
     }
   }
 
@@ -419,7 +440,7 @@ export default function FormPage() {
     setTouched(prev => ({ ...prev, [key]: true }))
     const field = form.fields.find(f => f.key === key)!
     const v = val !== undefined ? val : values[key]
-    setErrors(prev => ({ ...prev, [key]: validate(field, v) ?? '' }))
+    setErrors(prev => ({ ...prev, [key]: validate(field, v, t) ?? '' }))
   }
 
   const filled = form
@@ -430,7 +451,7 @@ export default function FormPage() {
     e.preventDefault()
     if (!form) return
     const newTouched = Object.fromEntries(form.fields.map(f => [f.key, true]))
-    const newErrors  = Object.fromEntries(form.fields.map(f => [f.key, validate(f, values[f.key]) ?? '']))
+    const newErrors  = Object.fromEntries(form.fields.map(f => [f.key, validate(f, values[f.key], t) ?? '']))
     setTouched(newTouched)
     setErrors(newErrors)
     if (Object.values(newErrors).some(Boolean)) return
@@ -444,11 +465,11 @@ export default function FormPage() {
       })
       if (!res.ok) {
         const text = await res.text()
-        throw new Error(text || `Greška servera: ${res.status}`)
+        throw new Error(text || t('form.serverError', { status: res.status }))
       }
       setSubmitted(await res.json())
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Nepoznata greška. Pokušajte ponovo.')
+      setSubmitError(err instanceof Error ? err.message : t('form.unknownError'))
     } finally {
       setLoading(false)
     }
@@ -498,12 +519,15 @@ export default function FormPage() {
               </div>
             </div>
           </div>
-          <div className="fp-tagline">
-            <span>Digitalne usluge</span>
-            <span className="fp-tagline-dot"/>
-            <span>Grad Split</span>
-            <span className="fp-tagline-dot"/>
-            <span>e-Uprava</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div className="fp-tagline">
+              <span>{t('form.taglineServices')}</span>
+              <span className="fp-tagline-dot"/>
+              <span>{t('form.taglineCity')}</span>
+              <span className="fp-tagline-dot"/>
+              <span>{t('form.taglineEGov')}</span>
+            </div>
+            <LanguageSwitcher className="text-white/60" />
           </div>
         </div>
 
@@ -514,7 +538,7 @@ export default function FormPage() {
           {formLoading && (
             <div className="fp-card-state">
               <div className="fp-spinner fp-spinner--lg"/>
-              <span>Učitavanje obrasca…</span>
+              <span>{t('form.loading')}</span>
             </div>
           )}
 
@@ -529,7 +553,7 @@ export default function FormPage() {
           )}
 
           {form && !formLoading && (submitted ? (
-            <SuccessScreen sub={submitted} onReset={reset}/>
+            <SuccessScreen sub={submitted} onReset={reset} t={t}/>
           ) : (
             <>
               <div className="fp-card-head">
@@ -560,6 +584,8 @@ export default function FormPage() {
                       error={err(field.key)}
                       set={val => set(field.key, val)}
                       touch={val => touch(field.key, val)}
+                      selectPlaceholder={t('form.select')}
+                      addressPlaceholder={t('form.addressPlaceholder')}
                     />
                   ))}
                 </div>
@@ -570,7 +596,7 @@ export default function FormPage() {
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0 }}>
                         <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 4a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 018 5zm0 6.5a.875.875 0 110-1.75.875.875 0 010 1.75z"/>
                       </svg>
-                      Ispravite greške iznad prije slanja.
+                      {t('form.fixErrors')}
                     </div>
                   )}
                   {submitError && (
@@ -584,19 +610,19 @@ export default function FormPage() {
 
                   <button type="submit" className="fp-submit" disabled={loading}>
                     {loading
-                      ? <><div className="fp-spinner"/> Slanje…</>
+                      ? <><div className="fp-spinner"/> {t('form.submitting')}</>
                       : <>
                           <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                           </svg>
-                          Pošalji prijavu
+                          {t('form.submit')}
                         </>
                     }
                   </button>
 
                   <p className="fp-terms">
-                    Slanjem potvrđujete da ste pročitali i prihvatili{' '}
-                    <a href="#">Uvjete korištenja</a> i <a href="#">Politiku privatnosti</a> ŽutiBus usluge.
+                    {t('form.terms')}{' '}
+                    <a href="#">{t('form.termsLink')}</a> i <a href="#">{t('form.privacyLink')}</a> {t('form.termsOf')}
                   </p>
                 </div>
               </form>
@@ -605,14 +631,14 @@ export default function FormPage() {
         </div>
 
         <div className="fp-page-foot">
-          <span>&copy; {new Date().getFullYear()} ŽutiBus Split · Grad Split digitalna usluga</span>
+          <span>{t('form.footer', { year: new Date().getFullYear() })}</span>
           <div className="fp-page-foot-civic">
             <div className="fp-page-foot-flag">
               <div className="fp-flag-blue"/>
               <div className="fp-flag-white"/>
               <div className="fp-flag-red"/>
             </div>
-            <span>Republika Hrvatska · Splitsko-dalmatinska županija</span>
+            <span>{t('form.footerCivic')}</span>
           </div>
         </div>
       </div>

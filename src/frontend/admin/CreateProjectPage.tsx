@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { createForm, type FormField } from '../api/client'
 import { FieldType } from '../examples/form-models'
 import type { SelectOption, FieldValidation } from '../examples/form-models'
+import { useTranslation } from 'react-i18next'
 
 interface FieldDraft {
   key: string
@@ -14,16 +15,6 @@ interface FieldDraft {
   options: SelectOption[]
   validation: Partial<FieldValidation>
 }
-
-const FIELD_TYPES = [
-  { value: 'oib', label: 'OIB (11 digits)' },
-  { value: 'email', label: 'Email' },
-  { value: 'string', label: 'Text' },
-  { value: 'number', label: 'Number' },
-  { value: 'boolean', label: 'Checkbox' },
-  { value: 'select', label: 'Dropdown' },
-  { value: 'addresspoint', label: 'Address Point' },
-]
 
 function emptyField(): FieldDraft {
   return {
@@ -40,11 +31,22 @@ function emptyField(): FieldDraft {
 
 export default function CreateProjectPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [fields, setFields] = useState<FieldDraft[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const FIELD_TYPES = [
+    { value: 'oib', label: t('createProject.fieldTypes.oib') },
+    { value: 'email', label: t('createProject.fieldTypes.email') },
+    { value: 'string', label: t('createProject.fieldTypes.string') },
+    { value: 'number', label: t('createProject.fieldTypes.number') },
+    { value: 'boolean', label: t('createProject.fieldTypes.boolean') },
+    { value: 'select', label: t('createProject.fieldTypes.select') },
+    { value: 'addresspoint', label: t('createProject.fieldTypes.addresspoint') },
+  ]
 
   function addField() {
     setFields([...fields, emptyField()])
@@ -94,7 +96,7 @@ export default function CreateProjectPage() {
   async function handleSave() {
     if (!title.trim()) return
     if (fields.some((f) => !f.key.trim() || !f.label.trim())) {
-      setError('Every field needs a key and label.')
+      setError(t('createProject.validationError'))
       return
     }
     setSaving(true)
@@ -108,7 +110,7 @@ export default function CreateProjectPage() {
       })
       navigate(`/admin/projects/${form.id}`)
     } catch {
-      setError('Failed to create project. Is the backend running?')
+      setError(t('createProject.saveError'))
     } finally {
       setSaving(false)
     }
@@ -116,27 +118,27 @@ export default function CreateProjectPage() {
 
   return (
     <div className="p-8 max-w-3xl">
-      <h1 className="text-2xl font-display font-bold text-gray-900 mb-6">New Project</h1>
+      <h1 className="text-2xl font-display font-bold text-gray-900 mb-6">{t('createProject.title')}</h1>
 
       {/* Meta */}
       <section className="space-y-4 mb-8">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('createProject.titleLabel')}</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Child School Registration"
+            placeholder={t('createProject.titlePlaceholder')}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-bus-navy focus:border-bus-navy outline-none"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('createProject.descriptionLabel')}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            placeholder="A short description of this form."
+            placeholder={t('createProject.descriptionPlaceholder')}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-bus-navy focus:border-bus-navy outline-none"
           />
         </div>
@@ -145,18 +147,18 @@ export default function CreateProjectPage() {
       {/* Fields */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Fields</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('createProject.fieldsTitle')}</h2>
           <button
             onClick={addField}
             className="text-sm font-medium text-bus-navy hover:underline"
           >
-            + Add Field
+            {t('createProject.addField')}
           </button>
         </div>
 
         {fields.length === 0 && (
           <p className="text-gray-400 text-sm py-4">
-            No fields yet. Click "+ Add Field" to start building the form.
+            {t('createProject.noFields')}
           </p>
         )}
 
@@ -168,20 +170,20 @@ export default function CreateProjectPage() {
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-mono text-gray-400">
-                  Field #{i + 1}
+                  {t('createProject.fieldNumber', { number: i + 1 })}
                 </span>
                 <button
                   onClick={() => removeField(i)}
                   className="text-xs text-red-500 hover:text-red-700"
                 >
-                  Remove
+                  {t('createProject.remove')}
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Key *
+                    {t('createProject.keyLabel')}
                   </label>
                   <input
                     type="text"
@@ -193,19 +195,19 @@ export default function CreateProjectPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Label *
+                    {t('createProject.labelLabel')}
                   </label>
                   <input
                     type="text"
                     value={field.label}
                     onChange={(e) => updateField(i, { label: e.target.value })}
-                    placeholder="Display Label"
+                    placeholder={t('createProject.displayLabelPlaceholder')}
                     className="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-bus-navy"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Type
+                    {t('createProject.typeLabel')}
                   </label>
                   <select
                     value={field.type}
@@ -217,9 +219,9 @@ export default function CreateProjectPage() {
                     }
                     className="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-bus-navy"
                   >
-                    {FIELD_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
+                    {FIELD_TYPES.map((ft) => (
+                      <option key={ft.value} value={ft.value}>
+                        {ft.label}
                       </option>
                     ))}
                   </select>
@@ -232,7 +234,7 @@ export default function CreateProjectPage() {
                       onChange={(e) => updateField(i, { required: e.target.checked })}
                       className="rounded border-gray-300"
                     />
-                    Required
+                    {t('createProject.required')}
                   </label>
                 </div>
               </div>
@@ -240,7 +242,7 @@ export default function CreateProjectPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Placeholder
+                    {t('createProject.placeholderLabel')}
                   </label>
                   <input
                     type="text"
@@ -251,7 +253,7 @@ export default function CreateProjectPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Help Text
+                    {t('createProject.helpTextLabel')}
                   </label>
                   <input
                     type="text"
@@ -267,17 +269,17 @@ export default function CreateProjectPage() {
                 <div className="mt-4 border-t border-gray-100 pt-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-gray-600">
-                      Options
+                      {t('createProject.options')}
                     </span>
                     <button
                       onClick={() => addOption(i)}
                       className="text-xs text-bus-navy hover:underline"
                     >
-                      + Add Option
+                      {t('createProject.addOption')}
                     </button>
                   </div>
                   {field.options.length === 0 && (
-                    <p className="text-xs text-gray-400">No options yet.</p>
+                    <p className="text-xs text-gray-400">{t('createProject.noOptions')}</p>
                   )}
                   <div className="space-y-2">
                     {field.options.map((opt, oi) => (
@@ -297,7 +299,7 @@ export default function CreateProjectPage() {
                           onChange={(e) =>
                             updateOption(i, oi, { displayName: e.target.value })
                           }
-                          placeholder="Display Name"
+                          placeholder={t('createProject.displayNamePlaceholder')}
                           className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs outline-none"
                         />
                         <button
@@ -323,7 +325,7 @@ export default function CreateProjectPage() {
         disabled={saving || !title.trim()}
         className="px-6 py-2.5 bg-bus-navy text-white font-semibold rounded-lg hover:bg-bus-navy-dark disabled:opacity-50 transition text-sm"
       >
-        {saving ? 'Creating...' : 'Create Project'}
+        {saving ? t('createProject.creating') : t('createProject.create')}
       </button>
     </div>
   )

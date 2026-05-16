@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getForm, getSubmission, type FormDefinition, type FormSubmission } from '../api/client'
 import type { AddressPoint } from '../examples/form-models'
+import { useTranslation } from 'react-i18next'
 
 export default function SubmissionDetailPage() {
   const { id, submissionId } = useParams<{ id: string; submissionId: string }>()
@@ -9,6 +10,7 @@ export default function SubmissionDetailPage() {
   const [submission, setSubmission] = useState<FormSubmission | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!id || !submissionId) return
@@ -17,13 +19,13 @@ export default function SubmissionDetailPage() {
         setForm(f)
         setSubmission(s)
       })
-      .catch(() => setError('Failed to load submission.'))
+      .catch(() => setError(t('submissionDetail.loadError')))
       .finally(() => setLoading(false))
-  }, [id, submissionId])
+  }, [id, submissionId, t])
 
-  if (loading) return <div className="p-8 text-gray-500">Loading...</div>
+  if (loading) return <div className="p-8 text-gray-500">{t('submissionDetail.loading')}</div>
   if (error) return <div className="p-8 text-red-500 text-sm">{error}</div>
-  if (!form || !submission) return <div className="p-8 text-gray-500">Not found.</div>
+  if (!form || !submission) return <div className="p-8 text-gray-500">{t('submissionDetail.notFound')}</div>
 
   function renderValue(fieldKey: string, fieldType: string, options?: { id: string; displayName: string }[]) {
     const val = submission!.values[fieldKey]
@@ -33,7 +35,7 @@ export default function SubmissionDetailPage() {
       case 'boolean':
         return (
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${val ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-            {val ? 'Yes' : 'No'}
+            {val ? t('submissionDetail.yes') : t('submissionDetail.no')}
           </span>
         )
       case 'select': {
@@ -70,24 +72,25 @@ export default function SubmissionDetailPage() {
         to={`/admin/projects/${id}`}
         className="text-sm text-gray-500 hover:text-bus-navy mb-4 inline-block"
       >
-        &larr; Back to {form.title}
+        {t('submissionDetail.back', { title: form.title })}
       </Link>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-display font-bold text-gray-900">Submission Detail</h1>
+        <h1 className="text-2xl font-display font-bold text-gray-900">{t('submissionDetail.pageTitle')}</h1>
         <div className="flex gap-4 mt-2 text-xs text-gray-400">
           <span>
-            Submitted{' '}
-            {new Date(submission.submittedAt).toLocaleString('hr-HR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
+            {t('submissionDetail.submitted', {
+              date: new Date(submission.submittedAt).toLocaleString('hr-HR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              }),
             })}
           </span>
-          <span>Form v{submission.formVersion}</span>
+          <span>{t('submissionDetail.formVersion', { version: submission.formVersion })}</span>
         </div>
       </div>
 
@@ -106,8 +109,8 @@ export default function SubmissionDetailPage() {
       </div>
 
       <div className="mt-6 text-xs text-gray-400">
-        <p>Submission ID: <span className="font-mono">{submission.submissionId}</span></p>
-        <p>Form ID: <span className="font-mono">{submission.formId}</span></p>
+        <p>{t('submissionDetail.submissionId')} <span className="font-mono">{submission.submissionId}</span></p>
+        <p>{t('submissionDetail.formId')} <span className="font-mono">{submission.formId}</span></p>
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import {
   type SchoolSummary,
   type SchoolRouteResponse,
 } from '../api/client'
+import { useTranslation } from 'react-i18next'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string
 
@@ -28,6 +29,7 @@ export default function SchoolRoutingPage() {
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const mapReadyRef = useRef(false)
   const markersRef = useRef<mapboxgl.Marker[]>([])
+  const { t } = useTranslation()
 
   const [schools, setSchools] = useState<SchoolSummary[]>([])
   const [selectedId, setSelectedId] = useState<number | ''>('')
@@ -55,8 +57,8 @@ export default function SchoolRoutingPage() {
   useEffect(() => {
     listSchools()
       .then(setSchools)
-      .catch(() => setSchoolsError('Could not load schools — is the backend running?'))
-  }, [])
+      .catch(() => setSchoolsError(t('routing.loadError')))
+  }, [t])
 
   // ── Clear map helpers ───────────────────────────────────────────────────────
   const clearMap = useCallback(() => {
@@ -99,7 +101,7 @@ export default function SchoolRoutingPage() {
         .setLngLat([stop.lon, stop.lat])
         .setPopup(
           new mapboxgl.Popup({ offset: 14 }).setHTML(
-            `<p style="margin:0;font-weight:600">Stop ${i + 1}</p>
+            `<p style="margin:0;font-weight:600">${t('routing.stop', { number: i + 1 })}</p>
              <p style="margin:2px 0 0;font-size:12px;color:#555">
                ${stop.lat.toFixed(5)}, ${stop.lon.toFixed(5)}
              </p>`
@@ -136,7 +138,7 @@ export default function SchoolRoutingPage() {
       .setPopup(
         new mapboxgl.Popup({ offset: 18 }).setHTML(
           `<p style="margin:0;font-weight:600">${data.school.name}</p>
-           <p style="margin:2px 0 0;font-size:12px;color:#555">Destination</p>`
+           <p style="margin:2px 0 0;font-size:12px;color:#555">${t('routing.destination')}</p>`
         )
       )
       .addTo(map)
@@ -186,7 +188,7 @@ export default function SchoolRoutingPage() {
     if (!bounds.isEmpty()) {
       map.fitBounds(bounds, { padding: 70, maxZoom: 14, duration: 800 })
     }
-  }, [])
+  }, [t])
 
   // ── Re-render when result arrives and map is ready ──────────────────────────
   useEffect(() => {
@@ -210,7 +212,7 @@ export default function SchoolRoutingPage() {
       const data = await getSchoolRoute(Number(selectedId))
       setResult(data)
     } catch (e) {
-      setRouteError(e instanceof Error ? e.message : 'Route calculation failed.')
+      setRouteError(e instanceof Error ? e.message : t('routing.routeError'))
     } finally {
       setLoading(false)
     }
@@ -221,10 +223,8 @@ export default function SchoolRoutingPage() {
     <div className="flex flex-col h-full">
       {/* Page header */}
       <div className="px-8 py-5 border-b border-gray-200 bg-white shrink-0">
-        <h1 className="text-2xl font-display font-bold text-gray-900">School Route Planner</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Calculate the optimised bus route collecting registered students and delivering them to school.
-        </p>
+        <h1 className="text-2xl font-display font-bold text-gray-900">{t('routing.title')}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{t('routing.subtitle')}</p>
       </div>
 
       {/* Body: sidebar + map */}
@@ -235,7 +235,7 @@ export default function SchoolRoutingPage() {
 
           {/* School selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">School</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('routing.schoolLabel')}</label>
             {schoolsError
               ? <p className="text-xs text-red-500">{schoolsError}</p>
               : (
@@ -244,7 +244,7 @@ export default function SchoolRoutingPage() {
                   onChange={e => setSelectedId(e.target.value ? Number(e.target.value) : '')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-900"
                 >
-                  <option value="">Select a school…</option>
+                  <option value="">{t('routing.selectSchool')}</option>
                   {schools.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -259,7 +259,7 @@ export default function SchoolRoutingPage() {
             disabled={!selectedId || loading}
             className="w-full px-4 py-2.5 bg-bus-yellow text-gray-900 font-semibold rounded-lg hover:bg-bus-yellow-dark transition text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Calculating…' : 'Calculate Route'}
+            {loading ? t('routing.calculating') : t('routing.calculate')}
           </button>
 
           {/* Route error */}
@@ -275,19 +275,19 @@ export default function SchoolRoutingPage() {
 
               {/* Summary cards */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Summary</h3>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('routing.summary')}</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  <StatCard label="Bus Stops" value={String(result.busStops.length)} />
-                  <StatCard label="Travel Time" value={formatTime(result.route.timeSec)} />
+                  <StatCard label={t('routing.busStops')} value={String(result.busStops.length)} />
+                  <StatCard label={t('routing.travelTime')} value={formatTime(result.route.timeSec)} />
                   <div className="col-span-2">
-                    <StatCard label="Distance" value={`${result.route.lengthKm.toFixed(1)} km`} />
+                    <StatCard label={t('routing.distance')} value={`${result.route.lengthKm.toFixed(1)} km`} />
                   </div>
                 </div>
               </div>
 
               {/* Destination */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Destination</h3>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('routing.destination')}</h3>
                 <div className="flex items-center gap-2.5 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5">
                   <span className="w-4 h-4 rounded-full bg-red-500 shrink-0" />
                   <span className="text-sm text-gray-800 font-medium leading-tight">{result.school.name}</span>
@@ -297,7 +297,7 @@ export default function SchoolRoutingPage() {
               {/* Bus stop list */}
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Pickup Stops ({result.busStops.length})
+                  {t('routing.pickupStops', { count: result.busStops.length })}
                 </h3>
                 <div className="space-y-1 max-h-72 overflow-y-auto pr-0.5">
                   {result.busStops.map((stop, i) => (
@@ -329,8 +329,8 @@ export default function SchoolRoutingPage() {
             <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-10">
               <div className="bg-white rounded-2xl shadow-xl px-8 py-6 text-center">
                 <div className="w-9 h-9 border-4 border-blue-900 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-700">Calculating optimised route…</p>
-                <p className="text-xs text-gray-400 mt-1">Querying bus stops and Valhalla</p>
+                <p className="text-sm font-medium text-gray-700">{t('routing.calculatingOverlay')}</p>
+                <p className="text-xs text-gray-400 mt-1">{t('routing.calculatingSubtext')}</p>
               </div>
             </div>
           )}
@@ -338,7 +338,7 @@ export default function SchoolRoutingPage() {
           {/* Empty state hint */}
           {!result && !loading && (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-xl shadow px-4 py-2.5 text-xs text-gray-500 pointer-events-none">
-              Select a school and click <strong>Calculate Route</strong> to see the optimised bus route.
+              {t('routing.hint')}
             </div>
           )}
         </div>
