@@ -72,3 +72,46 @@ export async function getSubmission(formId: string, submissionId: string): Promi
   if (!res.ok) throw new Error('Failed to fetch submission')
   return res.json()
 }
+
+// ── Schools & Routing ────────────────────────────────────────────────────────
+
+export interface SchoolSummary {
+  id: number
+  name: string
+  lat: number
+  lon: number
+}
+
+export interface BusStopPoint {
+  lat: number
+  lon: number
+}
+
+export interface SchoolRouteResponse {
+  school: SchoolSummary
+  busStops: BusStopPoint[]
+  route: {
+    /** Each leg is an ordered list of [longitude, latitude] pairs. */
+    legs: number[][][]
+    timeSec: number
+    lengthKm: number
+  }
+}
+
+export async function listSchools(): Promise<SchoolSummary[]> {
+  const res = await fetch('/schools', { headers: authHeaders() })
+  if (!res.ok) throw new Error('Failed to fetch schools')
+  return res.json()
+}
+
+export async function getSchoolRoute(schoolId: number): Promise<SchoolRouteResponse> {
+  const res = await fetch(`/routing/school/${schoolId}`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw new Error(body?.message ?? `Route calculation failed (${res.status})`)
+  }
+  return res.json()
+}

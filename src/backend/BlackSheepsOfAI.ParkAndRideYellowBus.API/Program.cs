@@ -75,6 +75,9 @@ app.MapAuthEndpoints();
 // Form definition endpoints — see Endpoints/FormEndpoints.cs
 app.MapFormEndpoints();
 
+// School list endpoint — see Endpoints/SchoolsEndpoints.cs
+app.MapSchoolsEndpoints();
+
 // Routing endpoints — see Endpoints/RoutingEndpoints.cs
 app.MapRoutingEndpoints();
 

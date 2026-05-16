@@ -6,6 +6,28 @@ using NetTopologySuite.Geometries;
 
 namespace BlackSheepsOfAI.ParkAndRideYellowBus.API.Endpoints;
 
+// ── Response DTOs ─────────────────────────────────────────────────────────────
+
+public sealed record SchoolRouteResponse(
+    SchoolRouteInfo School,
+    IReadOnlyList<BusStopInfo> BusStops,
+    RouteInfo Route);
+
+public sealed record SchoolRouteInfo(int Id, string Name, double Lat, double Lon);
+public sealed record BusStopInfo(double Lat, double Lon);
+
+/// <param name="Legs">
+/// One element per Valhalla trip leg. Each element is an ordered list of
+/// <c>[longitude, latitude]</c> pairs (GeoJSON coordinate order) decoded from
+/// Valhalla's 6-precision encoded polyline.
+/// </param>
+public sealed record RouteInfo(
+    IReadOnlyList<IReadOnlyList<double[]>> Legs,
+    double TimeSec,
+    double LengthKm);
+
+// ── Endpoint ──────────────────────────────────────────────────────────────────
+
 public static class RoutingEndpoints
 {
     public static IEndpointRouteBuilder MapRoutingEndpoints(this IEndpointRouteBuilder app)
@@ -16,6 +38,7 @@ public static class RoutingEndpoints
         // 3. Extracts homeAddress lat/lon from each submission.
         // 4. For every home address, finds the nearest bus stop via PostGIS distance.
         // 5. Runs Valhalla optimized route: unique bus stops as waypoints, school as destination.
+        // 6. Returns school info, bus stop coordinates, and decoded route geometry.
         app.MapPost("/routing/school/{id:int}",
             async (int id, ApplicationDbContext db, IValhallaClient valhalla, CancellationToken ct) =>
             {
@@ -44,12 +67,12 @@ public static class RoutingEndpoints
                         new { message = "No form submissions with home addresses found for this school." });
 
                 // 3 & 4. Nearest bus stop per home address (deduplicated)
-                var waypoints  = new List<ValhallaLocation>();
+                var waypoints   = new List<ValhallaLocation>();
+                var busStops    = new List<BusStopInfo>();
                 var seenStopIds = new HashSet<int>();
 
                 foreach (var addr in homeAddresses)
                 {
-                    // PostGIS translates .Distance() to ST_Distance
                     var searchPoint = new Point(addr.Lon, addr.Lat) { SRID = 4326 };
 
                     var nearest = await db.BusStops
@@ -61,11 +84,10 @@ public static class RoutingEndpoints
                     if (nearest is null || !seenStopIds.Add(nearest.Id))
                         continue;
 
-                    waypoints.Add(new ValhallaLocation
-                    {
-                        Lat = nearest.Geom.Coordinate.Y,
-                        Lon = nearest.Geom.Coordinate.X
-                    });
+                    var lat = nearest.Geom.Coordinate.Y;
+                    var lon = nearest.Geom.Coordinate.X;
+                    waypoints.Add(new ValhallaLocation { Lat = lat, Lon = lon });
+                    busStops.Add(new BusStopInfo(lat, lon));
                 }
 
                 // 5. Optimized route: bus stops → school
@@ -75,13 +97,31 @@ public static class RoutingEndpoints
                     Destination = new ValhallaLocation
                     {
                         Lat = school.Geom.Coordinate.Y,
-                        Lon = school.Geom.Coordinate.X
+                        Lon = school.Geom.Coordinate.X,
                     },
-                    Costing = "auto"
+                    Costing = "auto",
                 };
 
                 var route = await valhalla.GetOptimizedRouteAsync(valhallaRequest, ct);
-                return Results.Ok(route);
+
+                // 6. Build enriched response
+                var legs = route.Trip.Legs
+                    .Select(leg => (IReadOnlyList<double[]>)DecodePolyline(leg.Shape))
+                    .ToList();
+
+                var response = new SchoolRouteResponse(
+                    School: new SchoolRouteInfo(
+                        school.Id,
+                        school.Name,
+                        school.Geom.Coordinate.Y,
+                        school.Geom.Coordinate.X),
+                    BusStops: busStops,
+                    Route: new RouteInfo(
+                        Legs:      legs,
+                        TimeSec:   route.Trip.Summary.Time,
+                        LengthKm:  route.Trip.Summary.Length));
+
+                return Results.Ok(response);
             })
            .WithName("GetOptimizedRouteToSchool")
            .WithTags("Routing");
@@ -90,6 +130,39 @@ public static class RoutingEndpoints
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Decodes a Valhalla encoded-polyline string (precision 6) into an ordered
+    /// list of <c>[longitude, latitude]</c> pairs ready for GeoJSON.
+    /// </summary>
+    private static List<double[]> DecodePolyline(string encoded, int precision = 6)
+    {
+        if (string.IsNullOrEmpty(encoded)) return [];
+
+        var factor = Math.Pow(10, precision);
+        var result = new List<double[]>();
+        int index = 0, lat = 0, lng = 0;
+
+        while (index < encoded.Length)
+        {
+            // Decode latitude delta
+            int shift = 0, delta = 0, b;
+            do { b = encoded[index++] - 63; delta |= (b & 0x1F) << shift; shift += 5; }
+            while (b >= 0x20);
+            lat += (delta & 1) != 0 ? ~(delta >> 1) : delta >> 1;
+
+            // Decode longitude delta
+            shift = 0; delta = 0;
+            do { b = encoded[index++] - 63; delta |= (b & 0x1F) << shift; shift += 5; }
+            while (b >= 0x20);
+            lng += (delta & 1) != 0 ? ~(delta >> 1) : delta >> 1;
+
+            // GeoJSON order: [lon, lat]
+            result.Add([lng / factor, lat / factor]);
+        }
+
+        return result;
+    }
 
     /// <summary>Reads a string value from the submission values dictionary.</summary>
     private static string? GetStringValue(Dictionary<string, object?> values, string key)

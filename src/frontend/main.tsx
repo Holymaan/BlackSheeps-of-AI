@@ -10,6 +10,7 @@ import ProjectListPage from './admin/ProjectListPage'
 import CreateProjectPage from './admin/CreateProjectPage'
 import ProjectSubmissionsPage from './admin/ProjectSubmissionsPage'
 import SubmissionDetailPage from './admin/SubmissionDetailPage'
+import SchoolRoutingPage from './admin/SchoolRoutingPage'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="projects/new" element={<CreateProjectPage />} />
             <Route path="projects/:id" element={<ProjectSubmissionsPage />} />
             <Route path="projects/:id/submissions/:submissionId" element={<SubmissionDetailPage />} />
+            <Route path="routing" element={<SchoolRoutingPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
