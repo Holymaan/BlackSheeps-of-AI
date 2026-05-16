@@ -47,7 +47,15 @@ public sealed class ValhallaClient : IValhallaClient
     {
         var payload = ValhallaRoutePayload.From(request);
         var response = await _http.PostAsJsonAsync("/route", payload, cancellationToken);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Valhalla /route returned {(int)response.StatusCode}: {body}",
+                inner: null,
+                statusCode: response.StatusCode);
+        }
 
         return await response.Content.ReadFromJsonAsync<ValhallaOptimizedRouteResponse>(cancellationToken: cancellationToken)
                ?? throw new InvalidOperationException("Valhalla returned an empty route response.");
