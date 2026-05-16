@@ -12,7 +12,10 @@ public sealed record SchoolRouteResponse(
     SchoolRouteInfo School,
     IReadOnlyList<BusStopInfo> BusStops,
     IReadOnlyList<BusRouteInfo> BusRoutes,
-    FleetInfo Fleet);
+    FleetInfo Fleet,
+    IReadOnlyList<StudentHomePoint> StudentHomes);
+
+public sealed record StudentHomePoint(double Lat, double Lon, string Name);
 
 public sealed record SchoolRouteInfo(int Id, string Name, double Lat, double Lon);
 
@@ -84,6 +87,14 @@ public static class RoutingEndpoints
                 if (studentEntries.Count == 0)
                     return Results.UnprocessableEntity(
                         new { message = "No form submissions with home addresses found for this school." });
+
+                // Collect home locations for heatmap
+                var studentHomes = studentEntries
+                    .Select(e => new StudentHomePoint(
+                        e.Address!.Value.Lat,
+                        e.Address!.Value.Lon,
+                        e.ChildName))
+                    .ToList();
 
                 // 3 & 4. Nearest bus stop per home address (deduplicated, with student names)
                 var waypoints      = new List<ValhallaLocation>();
@@ -262,7 +273,8 @@ public static class RoutingEndpoints
                     Fleet: new FleetInfo(
                         TotalStudents: totalStudents,
                         BusCapacity:   capacity,
-                        BusesNeeded:   totalBuses));
+                        BusesNeeded:   totalBuses),
+                    StudentHomes: studentHomes);
 
                 return Results.Ok(response);
             })

@@ -128,6 +128,7 @@
     "schoolArrival": "arr.",
     "hideBus": "Hide route",
     "showBus": "Show route",
+    "heatmapToggle": "Student homes heatmap",
     "bus": "Bus"
   },
   "landing": {

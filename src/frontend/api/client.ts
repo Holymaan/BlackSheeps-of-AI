@@ -118,11 +118,18 @@ export interface BusRouteInfo {
   lengthKm: number
 }
 
+export interface StudentHomePoint {
+  lat: number
+  lon: number
+  name: string
+}
+
 export interface SchoolRouteResponse {
   school: SchoolSummary
   busStops: BusStopPoint[]
   busRoutes: BusRouteInfo[]
   fleet: FleetInfo
+  studentHomes: StudentHomePoint[]
 }
 
 export async function listSchools(): Promise<SchoolSummary[]> {

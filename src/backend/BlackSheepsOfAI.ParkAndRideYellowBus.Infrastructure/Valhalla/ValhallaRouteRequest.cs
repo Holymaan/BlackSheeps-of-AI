@@ -17,7 +17,7 @@ public sealed class ValhallaRouteRequest
     public IReadOnlyList<ValhallaLocation> Locations { get; init; } = [];
 
     /// <summary>Valhalla costing model, e.g. "auto", "pedestrian", "bicycle".</summary>
-    public string Costing { get; init; } = "auto";
+    public string Costing { get; init; } = "bus";
 }
 
 /// <summary>
@@ -30,7 +30,7 @@ internal sealed class ValhallaRoutePayload
     public IReadOnlyList<ValhallaLocation> Locations { get; init; } = [];
 
     [JsonPropertyName("costing")]
-    public string Costing { get; init; } = "auto";
+    public string Costing { get; init; } = "bus";
 
     internal static ValhallaRoutePayload From(ValhallaRouteRequest r) =>
         new() { Locations = r.Locations, Costing = r.Costing };

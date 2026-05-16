@@ -101,6 +101,7 @@ export default function SchoolRoutingPage() {
   const [expandedStops, setExpandedStops] = useState<Set<number>>(new Set())
   const [departureTime, setDepartureTime] = useState('07:00')
   const [visibleBuses, setVisibleBuses] = useState<Set<number>>(new Set())
+  const [showHeatmap, setShowHeatmap] = useState(true)
 
   const toggleStop = (idx: number) =>
     setExpandedStops(prev => {
@@ -308,6 +309,65 @@ export default function SchoolRoutingPage() {
     markersRef.current.push(schoolMarker)
     bounds.extend([data.school.lon, data.school.lat])
 
+    // Heatmap layer for student home addresses
+    if (data.studentHomes?.length) {
+      const heatSrc = 'student-homes-heat'
+      const heatLayer = 'student-homes-heatmap'
+      const pointLayer = 'student-homes-points'
+      sourceIdsRef.current.push(heatSrc)
+      layerIdsRef.current.push(heatLayer, pointLayer)
+
+      map.addSource(heatSrc, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: data.studentHomes.map(h => ({
+            type: 'Feature' as const,
+            geometry: { type: 'Point' as const, coordinates: [h.lon, h.lat] },
+            properties: { name: h.name },
+          })),
+        },
+      })
+
+      map.addLayer({
+        id: heatLayer,
+        type: 'heatmap',
+        source: heatSrc,
+        paint: {
+          'heatmap-weight': 1,
+          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 15, 2],
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 8, 15, 15, 30],
+          'heatmap-color': [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0, 'rgba(0,0,0,0)',
+            0.2, 'rgba(103,169,207,0.4)',
+            0.4, 'rgba(209,229,143,0.5)',
+            0.6, 'rgba(253,219,119,0.6)',
+            0.8, 'rgba(239,138,98,0.7)',
+            1, 'rgba(178,24,43,0.8)',
+          ],
+          'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 15, 0.4],
+        },
+      })
+
+      // Small dots visible at higher zoom
+      map.addLayer({
+        id: pointLayer,
+        type: 'circle',
+        source: heatSrc,
+        minzoom: 13,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#e25822',
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#fff',
+          'circle-opacity': 0.8,
+        },
+      })
+
+      data.studentHomes.forEach(h => bounds.extend([h.lon, h.lat]))
+    }
+
     // Extend bounds with all route coords
     data.busRoutes.forEach(br => {
       flattenLegs(br.legs).forEach(([lon, lat]) => bounds.extend([lon, lat]))
@@ -365,6 +425,15 @@ export default function SchoolRoutingPage() {
       }
     }
   }, [visibleBuses, result])
+
+  // ── Sync heatmap visibility ────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !result) return
+    const vis = showHeatmap ? 'visible' : 'none'
+    if (map.getLayer('student-homes-heatmap')) map.setLayoutProperty('student-homes-heatmap', 'visibility', vis)
+    if (map.getLayer('student-homes-points')) map.setLayoutProperty('student-homes-points', 'visibility', vis)
+  }, [showHeatmap, result])
 
   // ── Calculate route ─────────────────────────────────────────────────────────
   const calculate = async () => {
@@ -484,6 +553,18 @@ export default function SchoolRoutingPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Heatmap toggle */}
+              <button
+                onClick={() => setShowHeatmap(v => !v)}
+                className={`w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl border text-sm font-medium transition ${showHeatmap ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-gray-50 border-gray-200 text-gray-400'}`}
+              >
+                <span className={`w-5 h-5 rounded flex items-center justify-center text-xs ${showHeatmap ? 'bg-orange-500 text-white' : 'bg-gray-300 text-white'}`}>
+                  {showHeatmap ? '✓' : ''}
+                </span>
+                {t('routing.heatmapToggle')}
+                <span className="ml-auto text-xs opacity-60">{result.studentHomes?.length ?? 0}</span>
+              </button>
 
               {/* Per-bus route cards */}
               <div className="space-y-1.5">
