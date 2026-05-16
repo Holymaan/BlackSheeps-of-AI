@@ -30,7 +30,7 @@ public static class DependencyInjection
             .Get<ValhallaOptions>() ?? new ValhallaOptions();
 
         services
-            .AddHttpClient<IValhallaMatrixClient, ValhallaMatrixClient>(client =>
+            .AddHttpClient<IValhallaClient, ValhallaClient>(client =>
             {
                 client.BaseAddress = new Uri(valhallaOptions.BaseUrl);
             });
