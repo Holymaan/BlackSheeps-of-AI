@@ -13,3 +13,10 @@ Things that would weaken the pitch if you don't address them: who pays for it, h
 Let me draft the README based on reasonable assumptions, then ask a few things to tighten it.
 
 
+
+
+
+
+GDPR AWARE - bitno
+
+
