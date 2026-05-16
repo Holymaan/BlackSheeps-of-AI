@@ -1,0 +1,6 @@
+@BlackSheepsOfAI.ParkAndRideYellowBus.API_HostAddress = http://localhost:5058
+
+GET {{BlackSheepsOfAI.ParkAndRideYellowBus.API_HostAddress}}/health
+Accept: application/json
+
+###

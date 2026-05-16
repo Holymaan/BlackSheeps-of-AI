@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="BlackSheepsOfAI.ParkAndRideYellowBus.API/BlackSheepsOfAI.ParkAndRideYellowBus.API.csproj" />
+  <Project Path="BlackSheepsOfAI.ParkAndRideYellowBus.Core/BlackSheepsOfAI.ParkAndRideYellowBus.Core.csproj" />
+  <Project Path="BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure/BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure.csproj" />
+</Solution>

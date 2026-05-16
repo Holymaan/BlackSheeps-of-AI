@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Shared properties come from ../Directory.Build.props. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlackSheepsOfAI.ParkAndRideYellowBus.Core\BlackSheepsOfAI.ParkAndRideYellowBus.Core.csproj" />
+    <ProjectReference Include="..\BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure\BlackSheepsOfAI.ParkAndRideYellowBus.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

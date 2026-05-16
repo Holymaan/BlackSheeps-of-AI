@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared properties (TargetFramework, Nullable, ImplicitUsings) come from
+       ../Directory.Build.props. Domain layer — no project references. -->
+
+</Project>
